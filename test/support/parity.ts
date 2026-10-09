@@ -18,6 +18,8 @@ export const REASONS = [
   'endpoint fqdns kept for private link services',
   'anchored defaults',
   'name encoding',
+  'variables evaluated as expressions (legacy: single-pass text substitution; nested variables unresolved, brackets kept)',
+  'default remapping (3.6)',
 ] as const;
 
 export interface LegacyArtifact {

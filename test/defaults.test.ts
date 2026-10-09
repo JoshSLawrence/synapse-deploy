@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { Json } from '../src/expression.ts';
 import { isServiceDefault, remapDefaultName, remapDefaultReferences } from '../src/defaults.ts';
 
 describe('isServiceDefault', () => {
@@ -95,5 +96,24 @@ describe('remapDefaultReferences', () => {
         ],
       },
     });
+  });
+
+  it('leaves non-linked-service names that look like defaults alone', () => {
+    const body: Json = {
+      dependsOn: [
+        'Microsoft.Synapse/workspaces/myworkspace/pipelines/devws-WorkspaceDefaultStorage',
+      ],
+      properties: {
+        activities: [
+          {
+            pipeline: { referenceName: 'devws-WorkspaceDefaultStorage', type: 'PipelineReference' },
+          },
+          {
+            dataset: { referenceName: 'devws-WorkspaceDefaultSqlServer', type: 'DatasetReference' },
+          },
+        ],
+      },
+    };
+    assert.deepEqual(remapDefaultReferences(body, 'myworkspace'), body);
   });
 });

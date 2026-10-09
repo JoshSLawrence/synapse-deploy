@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { buildGraph, schedule } from '../src/graph.ts';
 import { caseNames, compareCase, readCase, REASONS } from './support/parity.ts';
 
 const key = (d: { artifact: string; path: string; legacy?: unknown; current?: unknown }) =>
@@ -36,4 +37,26 @@ describe('parity with the predecessor (legacy.json)', () => {
       assert.deepEqual(stale, [], `${name}: listed differences that no longer occur`);
     });
   }
+
+  it('order: the new schedule respects the predecessor batch order', async () => {
+    const { legacy, current } = readCase('order');
+    const batchOf = new Map(legacy.map((l) => [l.name, l.batch]));
+    const started: string[] = [];
+    await schedule(
+      buildGraph(current),
+      (key) => {
+        started.push(key);
+        return Promise.resolve();
+      },
+      1,
+    );
+    const batches = started.map((key) =>
+      batchOf.get(current.find((a) => a.key === key)?.name ?? ''),
+    );
+    assert.equal(batches.length, legacy.length);
+    assert.deepEqual(
+      batches,
+      [...batches].sort((a, b) => (a ?? 0) - (b ?? 0)),
+    );
+  });
 });

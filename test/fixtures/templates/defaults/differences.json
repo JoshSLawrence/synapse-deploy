@@ -4,14 +4,14 @@
     "path": "content.name",
     "legacy": "devws-WorkspaceDefaultStorage",
     "current": "myworkspace-WorkspaceDefaultStorage",
-    "reason": "anchored defaults"
+    "reason": "default remapping (3.6)"
   },
   {
     "artifact": "myworkspace-WorkspaceDefaultSqlServer",
     "path": "content.name",
     "legacy": "devws-WorkspaceDefaultSqlServer",
     "current": "myworkspace-WorkspaceDefaultSqlServer",
-    "reason": "anchored defaults"
+    "reason": "default remapping (3.6)"
   },
   {
     "artifact": "x-myworkspace-WorkspaceDefaultStorage-copy",

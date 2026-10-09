@@ -4,6 +4,6 @@
     "path": "name",
     "legacy": "myworkspace-synapse-ws-sql--devws",
     "current": "synapse-ws-sql--devws",
-    "reason": "anchored defaults"
+    "reason": "default remapping (3.6)"
   }
 ]

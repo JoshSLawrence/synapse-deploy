@@ -26216,6 +26216,13 @@ function mask(value) {
     return false;
   }
   setSecret(value);
+  if (/[\r\n]/.test(value)) {
+    for (const line of value.split(/\r?\n/)) {
+      if (line.length >= MIN_MASK_LENGTH && line !== value) {
+        setSecret(line);
+      }
+    }
+  }
   return true;
 }
 

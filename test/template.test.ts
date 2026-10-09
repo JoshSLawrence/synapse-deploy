@@ -536,6 +536,91 @@ describe('template: exported string defaults', () => {
   });
 });
 
+describe('template: review fixes', () => {
+  it('reports every parameter problem in one message', () => {
+    const text = template({ p: { type: 'int' }, q: { type: 'securestring' } }, []);
+    assert.throws(
+      () =>
+        load(text, {
+          parameterFiles: [
+            {
+              name: 'a.json',
+              text: JSON.stringify({
+                parameters: { nope: { value: 1 }, p: 'x', q: { reference: { secretName: 's' } } },
+              }),
+            },
+          ],
+          overrides: [{ name: 'p', value: 'abc' }],
+        }),
+      (error: Error) =>
+        error.message.startsWith('The parameters cannot be used:') &&
+        error.message.includes('sets nope, which the template does not declare') &&
+        error.message.includes('Parameter p in a.json must be {"value": ...}') &&
+        error.message.includes('Parameter q in a.json is a Key Vault reference') &&
+        error.message.includes('Parameter p is declared int'),
+    );
+  });
+
+  it('masks a supplied secure value even when a default then fails', () => {
+    const text = template(
+      { s: { type: 'securestring' }, bad: { type: 'string', defaultValue: "[parameters('zzz')]" } },
+      [],
+    );
+    const written: string[] = [];
+    assert.throws(() =>
+      quietly(
+        () =>
+          evaluateTemplate({
+            workspaceName: 'myworkspace',
+            templateText: text,
+            overrides: [{ name: 's', value: 'top-secret' }],
+          }),
+        written,
+      ),
+    );
+    assert.match(written.join(''), /::add-mask::top-secret/);
+  });
+
+  it('includes the value in the string-default warning, truncated, but not a secret one', () => {
+    const long = 'x'.repeat(150);
+    const text = template({ s: { type: 'securestring' } }, [
+      pipeline('pl', {
+        parameters: {
+          a: { type: 'string', defaultValue: [long] },
+          b: { type: 'string', defaultValue: ["[parameters('s')]"] },
+        },
+      }),
+    ]);
+    const { output } = load(text, { overrides: [{ name: 's', value: 'hush-hush' }] });
+    const warnings = output.split('\n').filter((line) => line.startsWith('::warning'));
+    assert.equal(warnings.length, 2);
+    assert.ok((warnings[0] ?? '').includes(`(value: ["${'x'.repeat(98)}...)`));
+    assert.ok(!(warnings[1] ?? '').includes('value:'));
+    assert.ok(!(warnings[1] ?? '').includes('hush-hush'));
+  });
+
+  it('allows resourceId in names and dependsOn only', () => {
+    const ok = template({}, [
+      pipeline('pl', {}, [
+        "[resourceId('Microsoft.Synapse/workspaces/notebooks', parameters('workspaceName'), 'nb')]",
+      ]),
+    ]);
+    assert.deepEqual(load(ok).artifacts[0]?.dependsOn, ['notebooks/nb']);
+    const bad = template({}, [
+      pipeline('pl', { v: "[resourceId('Microsoft.Synapse/workspaces/notebooks', 'ws', 'nb')]" }),
+    ]);
+    assert.throws(
+      () => load(bad),
+      /properties\.v: .*only supported in a resource name and in dependsOn/,
+    );
+  });
+
+  it('labels an error with the evaluated resource name', () => {
+    const text = template({}, [pipeline('pl_named', { v: "[parameters('nope')]" })]);
+    assert.throws(() => load(text), /resources\[0\] pl_named|resources\[0\] myworkspace\/pl_named/);
+  });
+});
+
 describe('template: loadTemplate', () => {
   const dir = join(import.meta.dirname, 'fixtures', 'templates', 'types');
 

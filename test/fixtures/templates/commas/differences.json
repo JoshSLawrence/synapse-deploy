@@ -11,7 +11,7 @@
     "path": "content.properties.typeProperties.fromVariable",
     "legacy": "[Server=sql.example.com'433;Database=db]",
     "current": "Server=sql.example.com,1433;Database=db",
-    "reason": "comma- and quote-safe concat"
+    "reason": "variables evaluated as expressions (legacy: single-pass text substitution; nested variables unresolved, brackets kept)"
   },
   {
     "artifact": "ls_commas",

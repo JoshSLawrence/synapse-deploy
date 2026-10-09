@@ -165,6 +165,28 @@ class Scope implements EvalContext {
     }
   }
 
+  /** String leaves of secure parameters: masked, and kept out of warnings. */
+  readonly secrets = new Set<string>();
+  allowResourceId = false;
+
+  maskSecure(value: Json): void {
+    for (const leaf of secureLeaves(value)) {
+      if (!this.secrets.has(leaf) && mask(leaf)) {
+        this.secrets.add(leaf);
+      }
+    }
+  }
+
+  /** Runs `action` with resourceId allowed: only names and dependsOn may use it. */
+  withResourceId<T>(action: () => T): T {
+    this.allowResourceId = true;
+    try {
+      return action();
+    } finally {
+      this.allowResourceId = false;
+    }
+  }
+
   supply(name: string, value: Json): void {
     this.supplied.set(name.toLowerCase(), value);
   }
@@ -267,6 +289,21 @@ function evaluateAt(scope: Scope, value: Json, path: string): Json {
 function buildScope(source: TemplateSource, template: JsonObject): Scope {
   const declared = declaredParameters(template);
   const scope = new Scope(declared, template['variables']);
+  const problems: string[] = [];
+  const attempt = (action: () => void): void => {
+    try {
+      action();
+    } catch (error) {
+      problems.push((error as Error).message);
+    }
+  };
+  // Mask as soon as a secure value is known, before anything can be logged.
+  const supply = (entry: Declared, name: string, value: Json): void => {
+    scope.supply(name, value);
+    if (SECURE_TYPES.has(entry.type)) {
+      scope.maskSecure(value);
+    }
+  };
 
   for (const file of source.parameterFiles ?? []) {
     const parsed = parseJson(file.text, `Parameters file ${file.name}`);
@@ -277,35 +314,45 @@ function buildScope(source: TemplateSource, template: JsonObject): Scope {
       );
     }
     for (const [name, entry] of Object.entries(section)) {
-      if (!declared.has(name.toLowerCase())) {
-        throw new Error(
-          `Parameters file ${file.name} sets ${name}, which the template does not declare. ` +
-            `Declared: ${declaredList(declared)}.`,
-        );
-      }
-      if (!isObject(entry) || Object.hasOwn(entry, 'reference')) {
-        throw new Error(
-          `Parameter ${name} in ${file.name} is a Key Vault reference (or not a value). ` +
-            'Key Vault references only work in ARM deployments; pass the value in the parameters input instead.',
-        );
-      }
-      const value = entry['value'];
-      if (value === undefined) {
-        throw new Error(`Parameter ${name} in ${file.name} has no "value".`);
-      }
-      scope.supply(name, value);
+      attempt(() => {
+        const entryDeclared = declared.get(name.toLowerCase());
+        if (!entryDeclared) {
+          throw new Error(
+            `Parameters file ${file.name} sets ${name}, which the template does not declare. ` +
+              `Declared: ${declaredList(declared)}.`,
+          );
+        }
+        if (!isObject(entry)) {
+          throw new Error(
+            `Parameter ${name} in ${file.name} must be {"value": ...}, as in TemplateParametersForWorkspace.json.`,
+          );
+        }
+        if (Object.hasOwn(entry, 'reference')) {
+          throw new Error(
+            `Parameter ${name} in ${file.name} is a Key Vault reference. ` +
+              'Key Vault references only work in ARM deployments; pass the value in the parameters input instead.',
+          );
+        }
+        const value = entry['value'];
+        if (value === undefined) {
+          throw new Error(`Parameter ${name} in ${file.name} has no "value".`);
+        }
+        supply(entryDeclared, name, value);
+      });
     }
   }
 
   for (const override of source.overrides ?? []) {
-    const entry = declared.get(override.name.toLowerCase());
-    if (!entry) {
-      throw new Error(
-        `The parameters input sets ${override.name}, which the template does not declare. ` +
-          `Declared: ${declaredList(declared)}.`,
-      );
-    }
-    scope.supply(override.name, typedOverride(entry, override.value));
+    attempt(() => {
+      const entry = declared.get(override.name.toLowerCase());
+      if (!entry) {
+        throw new Error(
+          `The parameters input sets ${override.name}, which the template does not declare. ` +
+            `Declared: ${declaredList(declared)}.`,
+        );
+      }
+      supply(entry, override.name, typedOverride(entry, override.value));
+    });
   }
 
   const forced = declared.get('workspacename');
@@ -325,14 +372,16 @@ function buildScope(source: TemplateSource, template: JsonObject): Scope {
     (entry) => !scope.isSupplied(entry.name) && !entry.hasDefault,
   );
   if (missing.length > 0) {
-    throw new Error(
+    problems.push(
       `No value for parameter(s) ${missing.map((entry) => entry.name).join(', ')}: ` +
         'add them to a parameters file or the parameters input, or give them a default in the template.',
     );
   }
+  if (problems.length > 0) {
+    throw new Error(`The parameters cannot be used:\n- ${problems.join('\n- ')}`);
+  }
 
-  // Evaluate every parameter now, so a bad default fails before any
-  // resource, and mask the secure ones before anything is logged.
+  // Evaluate every parameter now, so a bad default fails before any resource.
   for (const entry of declared.values()) {
     let value: Json;
     try {
@@ -341,7 +390,7 @@ function buildScope(source: TemplateSource, template: JsonObject): Scope {
       throw new Error(`Parameter ${entry.name}: ${(error as Error).message}`, { cause: error });
     }
     if (SECURE_TYPES.has(entry.type)) {
-      secureLeaves(value).forEach((leaf) => mask(leaf));
+      scope.maskSecure(value);
     }
   }
   return scope;
@@ -400,7 +449,7 @@ function resourceName(evaluated: Json): string {
 }
 
 /** The export turns a JSON-looking string default into JSON; warn, since it can't be repaired here. */
-function warnNonStringDefaults(artifact: Artifact): void {
+function warnNonStringDefaults(artifact: Artifact, secrets: ReadonlySet<string>): void {
   const properties = artifact.body['properties'];
   if (!isObject(properties)) {
     return;
@@ -422,9 +471,14 @@ function warnNonStringDefaults(artifact: Artifact): void {
       if (value === undefined || typeof value === 'string') {
         continue;
       }
+      const shown = JSON.stringify(value);
+      const secret = [...secrets].some((leaf) => shown.includes(JSON.stringify(leaf).slice(1, -1)));
+      const detail = secret
+        ? ''
+        : ` (value: ${shown.length > 100 ? `${shown.slice(0, 100)}...` : shown})`;
       core.warning(
         `properties.${section}.${name}.defaultValue: ` +
-          `The export changed this string default to ${jsonTypeName(value)}; Synapse may reject it or use it as that type. ` +
+          `The export changed this string default to ${jsonTypeName(value)}${detail}; Synapse may reject it or use it as that type. ` +
           'Change the default in Studio (for example add a space) or set it at run time.',
         { title: `${artifact.kind.id}/${artifact.name}` },
       );
@@ -432,7 +486,12 @@ function warnNonStringDefaults(artifact: Artifact): void {
   }
 }
 
-function buildArtifact(resource: unknown, scope: Scope, workspaceName: string): Artifact {
+function buildArtifact(
+  resource: unknown,
+  scope: Scope,
+  workspaceName: string,
+  info: { name?: string },
+): Artifact {
   if (!isObject(resource)) {
     throw new Error('the resource is not an object.');
   }
@@ -448,13 +507,19 @@ function buildArtifact(resource: unknown, scope: Scope, workspaceName: string): 
   if (typeof rawName !== 'string') {
     throw new Error('the resource has no "name".');
   }
-  const sourceName = resourceName(evaluateAt(scope, rawName, 'name'));
+  const sourceName = resourceName(scope.withResourceId(() => evaluateAt(scope, rawName, 'name')));
+  info.name = sourceName;
   const serviceDefault = isServiceDefault(kind.id, sourceName);
   const name = serviceDefault ? remapDefaultName(sourceName, workspaceName) : sourceName;
 
   const evaluated: JsonObject = {};
   for (const [key, value] of Object.entries(resource)) {
-    evaluated[key] = key === 'name' ? name : evaluateAt(scope, value, key);
+    evaluated[key] =
+      key === 'name'
+        ? name
+        : key === 'dependsOn'
+          ? scope.withResourceId(() => evaluateAt(scope, value, key))
+          : evaluateAt(scope, value, key);
   }
   const body = remapDefaultReferences(evaluated, workspaceName) as JsonObject;
   if (!Object.hasOwn(body, 'dependsOn')) {
@@ -518,25 +583,28 @@ export function evaluateTemplate(source: TemplateSource): EvaluatedTemplate {
   const seen = new Set<string>();
   const errors: string[] = [];
   (parsed['resources'] as unknown[]).forEach((resource, index) => {
-    const label =
-      isObject(resource) && typeof resource['name'] === 'string'
-        ? `resources[${index}] ${resource['name']}`
-        : `resources[${index}]`;
+    const info: { name?: string } = {};
+    const labelFor = (): string =>
+      info.name !== undefined
+        ? `resources[${index}] ${info.name}`
+        : isObject(resource) && typeof resource['name'] === 'string'
+          ? `resources[${index}] ${resource['name']}`
+          : `resources[${index}]`;
     try {
-      const artifact = buildArtifact(resource, scope, source.workspaceName);
+      const artifact = buildArtifact(resource, scope, source.workspaceName, info);
       if (seen.has(artifact.key)) {
         throw new Error(`${artifact.key} is defined twice; remove one of the resources.`);
       }
       seen.add(artifact.key);
       artifacts.push(artifact);
     } catch (error) {
-      errors.push(`${label}: ${(error as Error).message}`);
+      errors.push(`${labelFor()}: ${(error as Error).message}`);
     }
   });
   if (errors.length > 0) {
     throw new Error(`The template cannot be used:\n- ${errors.join('\n- ')}`);
   }
-  artifacts.forEach(warnNonStringDefaults);
+  artifacts.forEach((artifact) => warnNonStringDefaults(artifact, scope.secrets));
   return { artifacts };
 }
 

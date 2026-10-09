@@ -4,13 +4,13 @@
     "path": "content.properties.typeProperties.url",
     "legacy": "[variables('b')/test]",
     "current": "x-myworkspace-y/test",
-    "reason": "comma- and quote-safe concat"
+    "reason": "variables evaluated as expressions (legacy: single-pass text substitution; nested variables unresolved, brackets kept)"
   },
   {
     "artifact": "ls_vars",
     "path": "content.properties.typeProperties.other",
     "legacy": "[variables('a')-y]",
     "current": "x-myworkspace-y",
-    "reason": "comma- and quote-safe concat"
+    "reason": "variables evaluated as expressions (legacy: single-pass text substitution; nested variables unresolved, brackets kept)"
   }
 ]

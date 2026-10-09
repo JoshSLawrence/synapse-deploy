@@ -41,4 +41,20 @@ describe('mask', () => {
       [],
     );
   });
+
+  it('also masks each line of a multi-line value of three or more characters', () => {
+    const pem = '-----BEGIN KEY-----\r\nabcdef\nxy\n\n-----END KEY-----';
+    assert.deepEqual(
+      masked(() => {
+        assert.equal(mask(pem), true);
+      }),
+      // The runner's workflow command escapes newlines, so compare unescaped.
+      [
+        pem.replace(/\r/g, '%0D').replace(/\n/g, '%0A'),
+        '-----BEGIN KEY-----',
+        'abcdef',
+        '-----END KEY-----',
+      ],
+    );
+  });
 });

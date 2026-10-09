@@ -19,6 +19,8 @@ export class ExpressionError extends Error {
 export interface EvalContext {
   parameter(name: string): Json;
   variable(name: string): Json;
+  /** False outside `name` and `dependsOn`, where resourceId is not meaningful. */
+  readonly allowResourceId?: boolean;
 }
 
 interface CallNode {
@@ -260,6 +262,12 @@ function resourceId(args: Json[]): string {
   }
   const parts = type.split('/');
   const segments = parts.slice(1);
+  if (parts.length < 2 ? args.length > 2 : names.length > segments.length) {
+    throw new ExpressionError(
+      'resourceId() with a leading subscription or resource group argument is not supported. ' +
+        'Pass only the resource type and the names.',
+    );
+  }
   if (parts.length < 2 || names.length !== segments.length) {
     throw new ExpressionError(
       `resourceId('${type}', ...) needs ${segments.length} name(s), one per type segment, and got ${names.length}.`,
@@ -288,6 +296,11 @@ function evaluateNode(node: Node, context: EvalContext): Json {
       }
       return args.map((arg, index) => nameSegment('concat', index, arg)).join('');
     case 'resourceid':
+      if (context.allowResourceId === false) {
+        throw new ExpressionError(
+          'resourceId() is only supported in a resource name and in dependsOn.',
+        );
+      }
       return resourceId(args);
     default:
       throw new ExpressionError(`the function ${node.name} is not supported.`);

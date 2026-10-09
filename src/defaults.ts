@@ -40,6 +40,12 @@ export function remapDefaultName(name: string, workspaceName: string): string {
 
 function remapDependency(text: string, workspaceName: string): string {
   const slash = text.lastIndexOf('/');
+  // Only a linked service can be a workspace default; a pipeline named like
+  // one must keep its name.
+  const collection = text.slice(0, slash).split('/').pop() ?? '';
+  if (collection.toLowerCase() !== 'linkedservices') {
+    return text;
+  }
   return text.slice(0, slash + 1) + remapDefaultName(text.slice(slash + 1), workspaceName);
 }
 
@@ -56,7 +62,11 @@ export function remapDefaultReferences(value: Json, workspaceName: string): Json
   }
   const out: { [key: string]: Json } = {};
   for (const [key, child] of Object.entries(value)) {
-    if (key === 'referenceName' && typeof child === 'string') {
+    if (
+      key === 'referenceName' &&
+      typeof child === 'string' &&
+      value['type'] === 'LinkedServiceReference'
+    ) {
       out[key] = remapDefaultName(child, workspaceName);
     } else if (key === 'dependsOn' && Array.isArray(child)) {
       out[key] = child.map((item) =>

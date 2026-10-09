@@ -161,4 +161,24 @@ describe('expression: failures', () => {
   it('fails a name argument that is not a string', () => {
     assert.throws(() => evaluate('[parameters(1)]'), /one string argument/);
   });
+
+  it('says a leading subscription or resource group argument is unsupported', () => {
+    assert.throws(
+      () =>
+        evaluate("[resourceId('sub', 'rg', 'Microsoft.Synapse/workspaces/pipelines', 'ws', 'pl')]"),
+      /leading subscription or resource group argument is not supported/,
+    );
+    assert.throws(
+      () =>
+        evaluate("[resourceId('Microsoft.Synapse/workspaces/pipelines', 'sub', 'rg', 'ws', 'pl')]"),
+      /leading subscription or resource group argument is not supported/,
+    );
+  });
+
+  it('rejects resourceId when the context does not allow it', () => {
+    assert.throws(
+      () => evaluateString("[resourceId('A/b', 'x')]", { ...context, allowResourceId: false }),
+      /only supported in a resource name and in dependsOn/,
+    );
+  });
 });
