@@ -47,6 +47,8 @@ export interface OperationTarget {
    * for endpoints, ".../workspaces/<ws>" for ARM.
    */
   operationBase?: string;
+  /** api-version of that fallback poll; defaults to the data plane's. */
+  operationApiVersion?: string;
 }
 
 export interface DeployTarget extends OperationTarget {
@@ -251,11 +253,18 @@ async function followOperation(
   deadlineAt: number,
 ): Promise<void> {
   const location = headerValue(put.headers, 'location');
+  if (location === undefined && target.lenient === true) {
+    // Lake database entities have no operationResults collection to fall back on.
+    throw new Error(
+      `${target.label}: the service answered with an operation ID but no Location, so there is ` +
+        'nowhere to poll. Re-run the job; if it persists, check the database in Synapse Studio.',
+    );
+  }
   const url =
     location !== undefined
       ? sameOriginUrl(put.url, location)
       : new URL(
-          `${target.operationBase ?? ''}/operationResults/${encodeURIComponent(operationId ?? '')}?api-version=${DEFAULT_API_VERSION}`,
+          `${target.operationBase ?? ''}/operationResults/${encodeURIComponent(operationId ?? '')}?api-version=${target.operationApiVersion ?? DEFAULT_API_VERSION}`,
           put.url,
         ).toString();
   await poll(ctx, target, url, deadlineAt, interpretDeployPoll(target), put.headers);
@@ -340,14 +349,14 @@ export async function awaitDelete(
       const body = strictBody(res);
       const status = stringField(body, 'status');
       const lower = status?.toLowerCase();
+      if (lower === 'succeeded' || lower === 'deleted' || status === undefined) {
+        return true;
+      }
       if (isFailedState(lower)) {
         throw operationFailed(target, `delete ${lower}`, errorMessageOf(body));
       }
       if (lower === 'inprogress' || lower === 'accepted' || lower === 'running') {
         return `status ${String(status)}`;
-      }
-      if (lower === 'succeeded' || status === undefined) {
-        return true;
       }
       throw new Error(
         `${target.label}: the delete operation answered with status ${status}, which is not ` +

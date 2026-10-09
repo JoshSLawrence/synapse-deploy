@@ -693,8 +693,8 @@ describe('delete poll vocabulary (B1)', () => {
   );
   const deleteTarget = { scope: SCOPE, label: 'pipelines/pl_old' };
 
-  it('fails on Failed, Canceled, Rejected and Deleted with the service message', async () => {
-    for (const status of ['Failed', 'Canceled', 'Rejected', 'Deleted']) {
+  it('fails on Failed, Canceled and Rejected with the service message', async () => {
+    for (const status of ['Failed', 'Canceled', 'Rejected']) {
       const { ctx } = context([poll(200, { status, error: { message: 'because' } })]);
       const err = await rejection(awaitDelete(ctx, del, deleteTarget));
       assert.match(err.message, new RegExp(status.toLowerCase()));
@@ -713,8 +713,8 @@ describe('delete poll vocabulary (B1)', () => {
     assert.equal(calls.length, 4);
   });
 
-  it('is done on Succeeded or on no status', async () => {
-    for (const body of [{ status: 'Succeeded' }, {}, { name: 'x' }]) {
+  it('is done on Succeeded, Deleted or no status', async () => {
+    for (const body of [{ status: 'Succeeded' }, { status: 'Deleted' }, {}, { name: 'x' }]) {
       const { ctx } = context([poll(200, body)]);
       await awaitDelete(ctx, del, deleteTarget);
     }
@@ -857,5 +857,26 @@ describe('clearly terminal states fail fast; unknown ones keep waiting', () => {
     const waiting = context([asyncOp({ status: 'Strange' }), asyncOp({ status: 'Succeeded' })]);
     await awaitArmDeploy(waiting.ctx, armPut, { scope: SCOPE, label: 'ir', name: 'ir' });
     assert.equal(waiting.calls.length, 2);
+  });
+});
+
+describe('fallback poll details', () => {
+  it('uses the given api-version for the fallback poll', async () => {
+    const { ctx, calls } = context([poll(200, { name: 'x' })]);
+    await awaitDataPlaneDeploy(ctx, response(202, { operationId: 'a1' }), {
+      ...target,
+      name: 'x',
+      operationApiVersion: '2030-01-01',
+    });
+    assert.match(calls[0]?.url ?? '', /api-version=2030-01-01$/);
+  });
+
+  it('fails a lake database target with an operationId and no Location', async () => {
+    const { ctx, calls } = context([]);
+    const err = await rejection(
+      awaitDataPlaneDeploy(ctx, response(202, { operationId: 'a1' }), { ...target, lenient: true }),
+    );
+    assert.match(err.message, /no Location/);
+    assert.equal(calls.length, 0);
   });
 });

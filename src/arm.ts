@@ -39,6 +39,7 @@ export async function deployIntegrationRuntime(
     scope: ctx.scope,
     label: `integrationRuntimes/${name}`,
     name,
+    operationApiVersion: kind?.apiVersion ?? DEFAULT_API_VERSION,
     operationBase:
       `/subscriptions/${encodeURIComponent(ctx.subscriptionId)}` +
       `/resourceGroups/${encodeURIComponent(ctx.resourceGroup)}` +
