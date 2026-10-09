@@ -1,0 +1,37 @@
+[
+  {
+    "artifact": "It''s a \"pipe\"",
+    "path": "name",
+    "legacy": "It''s a \"pipe\"",
+    "current": "It's a \"pipe\"",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "It''s a \"pipe\"",
+    "path": "content.name",
+    "legacy": "It''s a \"pipe\"",
+    "current": "It's a \"pipe\"",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "It''s a \"pipe\"",
+    "path": "content.properties.description",
+    "legacy": "it''s it's here",
+    "current": "it's it's here",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "ls_o''brien",
+    "path": "name",
+    "legacy": "ls_o''brien",
+    "current": "ls_o'brien",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "ls_o''brien",
+    "path": "content.name",
+    "legacy": "ls_o''brien",
+    "current": "ls_o'brien",
+    "reason": "comma- and quote-safe concat"
+  }
+]

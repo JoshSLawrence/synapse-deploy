@@ -1,0 +1,9 @@
+[
+  {
+    "artifact": "myworkspace-synapse-ws-sql--devws",
+    "path": "name",
+    "legacy": "myworkspace-synapse-ws-sql--devws",
+    "current": "synapse-ws-sql--devws",
+    "reason": "default remapping (3.6)"
+  }
+]

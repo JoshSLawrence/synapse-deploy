@@ -57,16 +57,21 @@ scripts/
 src/
   auth.ts
   cloud.ts
+  defaults.ts
   exit_guard.ts
+  expression.ts
+  graph.ts
   http.ts
   inputs.ts
   kinds.ts
   main.ts
   mask.ts
   run.ts
+  template.ts
 test/
   fixtures/
     templates/
+  support/
   *.test.ts
 THIRD_PARTY_NOTICES.md
 tsconfig.json

@@ -1,0 +1,30 @@
+[
+  {
+    "artifact": "nb_literal",
+    "path": "content.properties.cells[0].source[0]",
+    "legacy": "name = 'myworkspace'\n",
+    "current": "name = parameters('workspaceName')\n",
+    "reason": "literal text no longer rewritten"
+  },
+  {
+    "artifact": "nb_literal",
+    "path": "content.properties.cells[0].source[1]",
+    "legacy": "wid = Microsoft.Synapse/workspaces/myworkspace\n",
+    "current": "wid = variables('workspaceId')\n",
+    "reason": "literal text no longer rewritten"
+  },
+  {
+    "artifact": "nb_literal",
+    "path": "content.properties.cells[0].source[2]",
+    "legacy": "print('real')\n",
+    "current": "print(parameters('p_x'))\n",
+    "reason": "literal text no longer rewritten"
+  },
+  {
+    "artifact": "sql_literal",
+    "path": "content.properties.content.query",
+    "legacy": "-- 'myworkspace' and Microsoft.Synapse/workspaces/myworkspace\nSELECT 'parameters(''p_x'')'",
+    "current": "-- parameters('workspaceName') and variables('workspaceId')\nSELECT 'parameters(''p_x'')'",
+    "reason": "literal text no longer rewritten"
+  }
+]
