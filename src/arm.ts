@@ -2,7 +2,7 @@
 // Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 
 import { awaitArmDeploy } from './lro.ts';
-import { KINDS } from './kinds.ts';
+import { DEFAULT_API_VERSION, KINDS } from './kinds.ts';
 import type { LroContext } from './lro.ts';
 
 export interface ArmContext extends LroContext {
@@ -19,7 +19,7 @@ const kind = KINDS.find((candidate) => candidate.id === 'integrationRuntimes');
 
 /** The integration runtime's resource URL under the workspace. */
 export function integrationRuntimeUrl(ctx: ArmContext, name: string): string {
-  const apiVersion = kind?.apiVersion ?? '2019-06-01-preview';
+  const apiVersion = kind?.apiVersion ?? DEFAULT_API_VERSION;
   return (
     `${ctx.arm.replace(/\/+$/, '')}/subscriptions/${encodeURIComponent(ctx.subscriptionId)}` +
     `/resourceGroups/${encodeURIComponent(ctx.resourceGroup)}` +
@@ -39,5 +39,9 @@ export async function deployIntegrationRuntime(
     scope: ctx.scope,
     label: `integrationRuntimes/${name}`,
     name,
+    operationBase:
+      `/subscriptions/${encodeURIComponent(ctx.subscriptionId)}` +
+      `/resourceGroups/${encodeURIComponent(ctx.resourceGroup)}` +
+      `/providers/Microsoft.Synapse/workspaces/${encodeURIComponent(ctx.workspace)}`,
   });
 }

@@ -26,6 +26,7 @@ import type { Http, Response } from './http.ts';
 export const OPERATION_DEADLINE_MS = 20 * 60_000;
 export const BASE_POLL_WAIT_MS = 2_000;
 export const MAX_POLL_WAIT_MS = 30_000;
+export const MIN_POLL_WAIT_MS = 1_000;
 
 export interface LroContext {
   http: Http;
@@ -40,6 +41,12 @@ export interface OperationTarget {
   scope: string;
   /** What the operation is for, such as "pipelines/pl_load"; used in messages. */
   label: string;
+  /**
+   * Path prefix of the operationResults collection when a PUT answers with an
+   * operationId and no Location: "" at the root, "/managedVirtualNetworks/default"
+   * for endpoints, ".../workspaces/<ws>" for ARM.
+   */
+  operationBase?: string;
 }
 
 export interface DeployTarget extends OperationTarget {
@@ -109,11 +116,11 @@ export function sameOriginUrl(requestUrl: string, target: string): string {
   return resolved.toString();
 }
 
-/** Retry-After when sent, else 2 s doubling to 30 s. */
+/** Retry-After when sent (at least 1 s: 0 or a past date must not spin), else 2 s doubling to 30 s. */
 export function pollWaitMs(headers: Response['headers'], poll: number, nowMs: number): number {
   const retryAfter = headerValue(headers, 'retry-after');
   if (retryAfter !== undefined && retryAfter.trim() !== '') {
-    return retryWaitMs(headers, poll, nowMs);
+    return Math.max(MIN_POLL_WAIT_MS, retryWaitMs(headers, poll, nowMs));
   }
   return Math.min(BASE_POLL_WAIT_MS * 2 ** (poll - 1), MAX_POLL_WAIT_MS);
 }
@@ -127,8 +134,15 @@ async function poll(
   url: string,
   deadlineAt: number,
   interpret: Interpreter,
+  initialHeaders: Response['headers'] = {},
 ): Promise<void> {
   let last: string | undefined;
+  // A Retry-After on the initial answer says when the first poll is worth
+  // making; without one the first poll goes out at once.
+  const initialHint = headerValue(initialHeaders, 'retry-after');
+  if (initialHint !== undefined && initialHint.trim() !== '') {
+    await ctx.sleep(pollWaitMs(initialHeaders, 1, ctx.now()));
+  }
   for (let n = 1; ; n++) {
     const res = await ctx.http.request('GET', url, target.scope);
     const verdict = interpret(res);
@@ -153,6 +167,19 @@ async function poll(
 
 function deadlineFor(ctx: LroContext): number {
   return ctx.now() + (ctx.deadlineMs ?? OPERATION_DEADLINE_MS);
+}
+
+// States after which nothing changes. ARM keeps waiting on values it does not
+// know, so only the clearly terminal ones fail fast.
+const FAILED_STATES = new Set(['failed', 'canceled', 'cancelled', 'rejected', 'deleted']);
+
+function isFailedState(lower: string | undefined): lower is string {
+  return lower !== undefined && FAILED_STATES.has(lower);
+}
+
+// Carries the service's own text so callers can match on it without the path.
+function operationFailed(target: OperationTarget, what: string, reason: string): HttpError {
+  return new HttpError(`${target.label} ${what}: ${reason}`, undefined, reason);
 }
 
 function unexpected(res: Response, target: OperationTarget): Error {
@@ -193,8 +220,8 @@ function interpretDeployPoll(target: DeployTarget): Interpreter {
     }
     const status = stringField(body, 'status');
     const lower = status?.toLowerCase();
-    if (lower === 'failed' || lower === 'canceled') {
-      throw new Error(`${target.label} ${lower}: ${errorMessageOf(body)}`);
+    if (isFailedState(lower)) {
+      throw operationFailed(target, lower, errorMessageOf(body));
     }
     if (lower === 'inprogress' || lower === 'accepted' || lower === 'running') {
       return `status ${String(status)}`;
@@ -228,10 +255,10 @@ async function followOperation(
     location !== undefined
       ? sameOriginUrl(put.url, location)
       : new URL(
-          `/operationResults/${encodeURIComponent(operationId ?? '')}?api-version=${DEFAULT_API_VERSION}`,
+          `${target.operationBase ?? ''}/operationResults/${encodeURIComponent(operationId ?? '')}?api-version=${DEFAULT_API_VERSION}`,
           put.url,
         ).toString();
-  await poll(ctx, target, url, deadlineAt, interpretDeployPoll(target));
+  await poll(ctx, target, url, deadlineAt, interpretDeployPoll(target), put.headers);
 }
 
 /**
@@ -262,11 +289,12 @@ async function startedOperation(
     await followOperation(ctx, put, target, operationId, deadlineAt);
     return true;
   }
-  if (put.status === 200 || put.status === 201 || (target.lenient === true && put.status < 300)) {
+  // Lake database entities are documented as synchronous: 200, and in practice 201 or 204.
+  if (put.status === 200 || put.status === 201 || (target.lenient === true && put.status === 204)) {
     return false;
   }
   throw new Error(
-    `${target.label}: PUT answered ${put.status} without an operation ID, so there is nothing ` +
+    `${target.label}: PUT answered ${put.status} without an operation ID${put.status === 202 ? ' or Location' : ''}, so there is nothing ` +
       `to wait for: ${put.text.trim() || 'empty body'}. Re-run the job; if it persists, check the artifact in Synapse Studio.`,
   );
 }
@@ -289,31 +317,45 @@ export async function awaitDelete(
   if (location === undefined) {
     return;
   }
-  await poll(ctx, target, sameOriginUrl(del.url, location), deadlineFor(ctx), (res) => {
-    if (res.status === 404) {
-      core.info(`${target.label}: the delete operation is gone (404); treating it as done`);
-      return true;
-    }
-    if (res.status === 429) {
-      return 'HTTP 429';
-    }
-    if (res.status === 202) {
-      return 'HTTP 202';
-    }
-    if (res.status === 200 || res.status === 201 || res.status === 204) {
-      const body = tolerantBody(res);
+  await poll(
+    ctx,
+    target,
+    sameOriginUrl(del.url, location),
+    deadlineFor(ctx),
+    (res) => {
+      if (res.status === 404) {
+        core.info(`${target.label}: the delete operation is gone (404); treating it as done`);
+        return true;
+      }
+      if (res.status === 429 || res.status === 202) {
+        return `HTTP ${res.status}`;
+      }
+      if (res.status === 204) {
+        return true;
+      }
+      if (res.status !== 200 && res.status !== 201) {
+        throw unexpected(res, target);
+      }
+      // A body that is not JSON is not a "done": it may be a proxy's page.
+      const body = strictBody(res);
       const status = stringField(body, 'status');
       const lower = status?.toLowerCase();
-      if (lower === 'failed') {
-        throw new Error(`${target.label} delete failed: ${errorMessageOf(body)}`);
+      if (isFailedState(lower)) {
+        throw operationFailed(target, `delete ${lower}`, errorMessageOf(body));
       }
-      if (lower === 'inprogress') {
-        return 'status InProgress';
+      if (lower === 'inprogress' || lower === 'accepted' || lower === 'running') {
+        return `status ${String(status)}`;
       }
-      return true;
-    }
-    throw unexpected(res, target);
-  });
+      if (lower === 'succeeded' || status === undefined) {
+        return true;
+      }
+      throw new Error(
+        `${target.label}: the delete operation answered with status ${status}, which is not ` +
+          'known; check the artifact in Synapse Studio and re-run the job.',
+      );
+    },
+    del.headers,
+  );
 }
 
 function provisioningInterpreter(target: OperationTarget): Interpreter {
@@ -331,10 +373,12 @@ function provisioningInterpreter(target: OperationTarget): Interpreter {
     if (lower === 'succeeded') {
       return true;
     }
-    if (lower === 'failed' || lower === 'canceled') {
+    if (isFailedState(lower)) {
       const error = asRecord(properties?.error);
-      throw new Error(
-        `${target.label} provisioning ${lower}: ${stringField(error, 'message') ?? errorMessageOf(body)}`,
+      throw operationFailed(
+        target,
+        `provisioning ${lower}`,
+        stringField(error, 'message') ?? errorMessageOf(body),
       );
     }
     return state === undefined ? 'no provisioningState yet' : `provisioningState ${state}`;
@@ -356,7 +400,7 @@ export async function awaitEndpointDeploy(
   if (stringField(tolerantBody(put), 'operationId') !== undefined) {
     await startedOperation(ctx, put, target, deadlineAt);
   }
-  await poll(ctx, target, put.url, deadlineAt, provisioningInterpreter(target));
+  await poll(ctx, target, put.url, deadlineAt, provisioningInterpreter(target), put.headers);
 }
 
 function interpretAsyncOperation(target: OperationTarget): Interpreter {
@@ -373,8 +417,8 @@ function interpretAsyncOperation(target: OperationTarget): Interpreter {
     if (lower === 'succeeded') {
       return true;
     }
-    if (lower === 'failed' || lower === 'canceled') {
-      throw new Error(`${target.label} ${lower}: ${errorMessageOf(body)}`);
+    if (isFailedState(lower)) {
+      throw operationFailed(target, lower, errorMessageOf(body));
     }
     return status === undefined ? 'no status yet' : `status ${status}`;
   };
@@ -402,6 +446,7 @@ export async function awaitArmDeploy(
       sameOriginUrl(put.url, asyncOperation),
       deadlineAt,
       interpretAsyncOperation(target),
+      put.headers,
     );
     return;
   }
@@ -413,15 +458,22 @@ export async function awaitArmDeploy(
           'is nothing to wait for. Re-run the job; if it persists, check the resource in the portal.',
       );
     }
-    await poll(ctx, target, sameOriginUrl(put.url, location), deadlineAt, (res) => {
-      if (res.status === 429 || res.status === 202) {
-        return `HTTP ${res.status}`;
-      }
-      if (res.status === 200 || res.status === 201 || res.status === 204) {
-        return true;
-      }
-      throw unexpected(res, target);
-    });
+    await poll(
+      ctx,
+      target,
+      sameOriginUrl(put.url, location),
+      deadlineAt,
+      (res) => {
+        if (res.status === 429 || res.status === 202) {
+          return `HTTP ${res.status}`;
+        }
+        if (res.status === 200 || res.status === 201 || res.status === 204) {
+          return true;
+        }
+        throw unexpected(res, target);
+      },
+      put.headers,
+    );
     return;
   }
   if (put.status === 200 || put.status === 201) {

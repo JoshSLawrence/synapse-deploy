@@ -28,23 +28,28 @@ afterEach(async () => {
 async function start(config: Partial<FakeConfig> = {}) {
   const started = await startFakeSynapse(config);
   server = started;
+  // A clock that moves only when the code sleeps: deadlines work, nothing
+  // waits in real time.
   const waits: number[] = [];
+  let time = Date.UTC(2026, 9, 9, 12, 0, 0);
+  const now = () => time;
   const sleep = (ms: number) => {
     waits.push(ms);
+    time += ms;
     return Promise.resolve();
   };
-  const http = createHttp({ tokens: started.tokens, sleep });
+  const http = createHttp({ tokens: started.tokens, sleep, now });
   const ctx: SynapseContext = {
     http,
     sleep,
-    now: Date.now,
+    now,
     dataPlane: started.endpoints.dataPlane,
     scope: dataPlaneScope(cloud),
   };
   const arm: ArmContext = {
     http,
     sleep,
-    now: Date.now,
+    now,
     arm: `${started.endpoints.arm}/`,
     scope: armScope(cloud),
     subscriptionId: '00000000-0000-0000-0000-000000000000',
@@ -141,24 +146,39 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
     assert.match(err.message, /a referenced dataset does not exist/);
   });
 
-  it('adds the trigger hint when a started trigger blocks a PUT or a DELETE', async () => {
+  it('adds the trigger hint when an enabled trigger blocks a PUT or a DELETE', async () => {
     const { server: fake, ctx } = await start();
     fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
     const put = await rejection(
       deployArtifact(ctx, kind('triggers'), 'tr_hourly', body('tr_hourly')),
     );
-    assert.match(put.message, /started/);
+    assert.match(put.message, /disabled first/);
     assert.match(
       put.message,
       /Stop the trigger first; the deployer does not start or stop triggers\./,
     );
     const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
     assert.match(del.message, /Stop the trigger first/);
-    const other = await rejection(
-      deployArtifact(ctx, kind('pipelines'), 'x', body('x')).then(() => {
-        throw new Error('boom started');
-      }),
+  });
+
+  it('adds no hint when only the trigger name says "started", or the artifact is not a trigger', async () => {
+    const { server: fake, ctx } = await start();
+    fake.addFault({
+      path: /triggers/,
+      response: { status: 400, body: '{"error":{"message":"The recurrence is invalid."}}' },
+    });
+    const err = await rejection(
+      deployArtifact(ctx, kind('triggers'), 'tr_started_daily', body('tr_started_daily')),
     );
+    assert.match(err.message, /tr_started_daily/);
+    assert.match(err.message, /recurrence is invalid/);
+    assert.doesNotMatch(err.message, /Stop the trigger/);
+
+    fake.addFault({
+      path: /pipelines/,
+      response: { status: 400, body: '{"error":{"message":"disabled first"}}' },
+    });
+    const other = await rejection(deployArtifact(ctx, kind('pipelines'), 'x', body('x')));
     assert.doesNotMatch(other.message, /Stop the trigger/);
   });
 
@@ -232,6 +252,14 @@ describe('managed private endpoints', () => {
     assert.match(err.message, /provisioning failed/);
   });
 
+  it('polls the endpoint operation under the virtual network base when there is no Location', async () => {
+    const { server: fake, ctx } = await start({ endpointPutMode: 'lro-no-location' });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    await deployArtifact(ctx, pe, 'pe_sql', endpoint());
+    const poll = fake.requests.find((r) => r.path.includes('operationResults'));
+    assert.match(poll?.path ?? '', /^\/managedVirtualNetworks\/default\/operationResults\/op\d+$/);
+  });
+
   it('deletes an endpoint at the virtual network path', async () => {
     const { server: fake, ctx } = await start();
     const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
@@ -245,10 +273,15 @@ describe('managed private endpoints', () => {
 
   it('reports whether the workspace has a managed virtual network', async () => {
     const withVnet = await start();
-    assert.equal(await hasManagedVirtualNetwork(withVnet.ctx), true);
+    const found = await hasManagedVirtualNetwork(withVnet.ctx);
+    assert.equal(found.exists, true);
+    assert.equal(found.response.status, 200);
+    assert.deepEqual(found.response.json(), { value: [] });
     await server?.close();
     const without = await start({ hasManagedVnet: false });
-    assert.equal(await hasManagedVirtualNetwork(without.ctx), false);
+    const missing = await hasManagedVirtualNetwork(without.ctx);
+    assert.equal(missing.exists, false);
+    assert.equal(missing.response.status, 400);
     const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
     const err = await rejection(deployArtifact(without.ctx, pe, 'pe_sql', endpoint()));
     assert.match(err.message, /400/);
@@ -383,6 +416,38 @@ describe('lake databases (deploy half)', () => {
     }
   });
 
+  it('fails a 202 without Location and any PUT that is not 2xx', async () => {
+    const { server: fake, ctx } = await start();
+    const one = { properties: { Ddls: [entity({ Name: 'd', EntityType: 'DATABASE' })] } };
+    fake.addFault({ method: 'PUT', path: /databases/, response: { status: 202 } });
+    const accepted = await rejection(deployArtifact(ctx, kind('databases'), 'd', one));
+    assert.match(accepted.message, /202 without an operation ID or Location/);
+
+    fake.addFault({
+      method: 'PUT',
+      path: /databases/,
+      response: { status: 409, body: '{"error":{"message":"conflict"}}' },
+    });
+    const conflict = await rejection(deployArtifact(ctx, kind('databases'), 'd', one));
+    assert.match(conflict.message, /409/);
+    assert.match(conflict.message, /conflict/);
+  });
+
+  it('accepts 200, 201 and 204 for a lake database entity', async () => {
+    for (const status of [200, 201, 204]) {
+      const { server: fake, ctx } = await start();
+      fake.addFault({
+        method: 'PUT',
+        path: /databases/,
+        response: { status, body: status === 204 ? '' : '{}' },
+      });
+      await deployArtifact(ctx, kind('databases'), 'd', {
+        properties: { Ddls: [entity({ Name: 'd', EntityType: 'DATABASE' })] },
+      });
+      await server?.close();
+    }
+  });
+
   it('deletes a lake database', async () => {
     const { server: fake, ctx } = await start();
     fake.seedDatabase('lakedb_example');
@@ -414,6 +479,16 @@ describe('integration runtimes through ARM', () => {
       assert.deepEqual([...new Set(fake.tokenScopes)], [armScope(cloud)]);
     });
   }
+
+  it('polls an operationId without Location under the workspace path', async () => {
+    const { server: fake, arm } = await start({ armMode: 'operation-id' });
+    await deployIntegrationRuntime(arm, 'ir_example', ir);
+    const poll = fake.requests.find((r) => r.path.includes('operationResults'));
+    assert.equal(
+      poll?.path.replace(/op\d+$/, 'OP'),
+      '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/myworkspace/operationResults/OP',
+    );
+  });
 
   it('fails when the ARM operation fails', async () => {
     const { server: fake, arm } = await start();

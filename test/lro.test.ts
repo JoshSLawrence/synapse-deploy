@@ -31,7 +31,15 @@ function response(
     status,
     headers,
     text,
-    json: () => JSON.parse(text) as unknown,
+    json: () => {
+      try {
+        return JSON.parse(text) as unknown;
+      } catch {
+        throw new Error(
+          `${method} ${url} answered with status ${status} and a body that is not JSON.`,
+        );
+      }
+    },
     method,
     url,
     attempts: 1,
@@ -619,6 +627,8 @@ describe('ARM integration runtime deploy', () => {
 });
 
 describe('429 during a poll, through request()', () => {
+  // The server is returned before anything is sent, so a test can close it in
+  // a finally block whatever fails after.
   async function setup(fault: { count: number }) {
     const server = await startFakeSynapse({ lroPolls: 0 });
     const waits: number[] = [];
@@ -638,19 +648,20 @@ describe('429 during a poll, through request()', () => {
         body: '{"error":{"message":"slow down"}}',
       },
     });
-    const put = await http.request(
-      'PUT',
-      `${server.url}/pipelines/pl_load?api-version=2019-06-01-preview`,
-      'https://dev.azuresynapse.net/.default',
-      { name: 'pl_load', properties: {} },
-    );
+    const put = () =>
+      http.request(
+        'PUT',
+        `${server.url}/pipelines/pl_load?api-version=2019-06-01-preview`,
+        'https://dev.azuresynapse.net/.default',
+        { name: 'pl_load', properties: {} },
+      );
     return { server, ctx, put, waits };
   }
 
   it('waits out a 429 and finishes', async () => {
     const { server, ctx, put, waits } = await setup({ count: 2 });
     try {
-      await awaitDataPlaneDeploy(ctx, put, target);
+      await awaitDataPlaneDeploy(ctx, await put(), target);
       assert.deepEqual(waits, [3000, 3000]);
       const polls = server.requests.filter((r) => r.path.startsWith('/operationResults'));
       assert.equal(polls.length, 3);
@@ -662,7 +673,7 @@ describe('429 during a poll, through request()', () => {
   it('fails when request() gives up after 5 attempts, not at the 20 minute deadline', async () => {
     const { server, ctx, put, waits } = await setup({ count: Number.POSITIVE_INFINITY });
     try {
-      const err = await rejection(awaitDataPlaneDeploy(ctx, put, target));
+      const err = await rejection(awaitDataPlaneDeploy(ctx, await put(), target));
       assert.match(err.message, /429/);
       assert.match(err.message, /after 5 attempts/);
       assert.match(err.message, /slow down/);
@@ -670,5 +681,181 @@ describe('429 during a poll, through request()', () => {
     } finally {
       await server.close();
     }
+  });
+});
+
+describe('delete poll vocabulary (B1)', () => {
+  const del = response(
+    202,
+    undefined,
+    { location: '/operationResults/op1?api-version=x' },
+    'DELETE',
+  );
+  const deleteTarget = { scope: SCOPE, label: 'pipelines/pl_old' };
+
+  it('fails on Failed, Canceled, Rejected and Deleted with the service message', async () => {
+    for (const status of ['Failed', 'Canceled', 'Rejected', 'Deleted']) {
+      const { ctx } = context([poll(200, { status, error: { message: 'because' } })]);
+      const err = await rejection(awaitDelete(ctx, del, deleteTarget));
+      assert.match(err.message, new RegExp(status.toLowerCase()));
+      assert.match(err.message, /because/);
+    }
+  });
+
+  it('waits on InProgress, Accepted and Running (on 200 and 201)', async () => {
+    const { ctx, calls } = context([
+      poll(200, { status: 'InProgress' }),
+      poll(201, { status: 'Accepted' }),
+      poll(200, { status: 'Running' }),
+      poll(200, { status: 'Succeeded' }),
+    ]);
+    await awaitDelete(ctx, del, deleteTarget);
+    assert.equal(calls.length, 4);
+  });
+
+  it('is done on Succeeded or on no status', async () => {
+    for (const body of [{ status: 'Succeeded' }, {}, { name: 'x' }]) {
+      const { ctx } = context([poll(200, body)]);
+      await awaitDelete(ctx, del, deleteTarget);
+    }
+  });
+
+  it('throws on a status it does not know', async () => {
+    const { ctx } = context([poll(200, { status: 'Strange' })]);
+    const err = await rejection(awaitDelete(ctx, del, deleteTarget));
+    assert.match(err.message, /status Strange/);
+  });
+
+  it('throws on a 200 or 201 body that is not JSON, and ignores the body of a 204', async () => {
+    for (const status of [200, 201]) {
+      const { ctx } = context([poll(status, '<html>proxy error</html>')]);
+      const err = await rejection(awaitDelete(ctx, del, deleteTarget));
+      assert.match(err.message, /not JSON/);
+    }
+    const { ctx } = context([poll(204, '<html>ignored</html>')]);
+    await awaitDelete(ctx, del, deleteTarget);
+  });
+});
+
+describe('deploy poll bodies', () => {
+  it('throws on a 200 body that is not JSON', async () => {
+    const { ctx } = context([poll(200, 'gateway page')]);
+    const err = await rejection(awaitDataPlaneDeploy(ctx, operation('op1'), target));
+    assert.match(err.message, /not JSON/);
+  });
+
+  it('fails fast on Rejected and Deleted too', async () => {
+    for (const status of ['Rejected', 'Deleted']) {
+      const { ctx } = context([poll(200, { status })]);
+      await rejection(awaitDataPlaneDeploy(ctx, operation('op1'), target));
+    }
+  });
+});
+
+describe('operationResults base without a Location (S1)', () => {
+  it('uses the root for data-plane artifacts', async () => {
+    const { ctx, calls } = context([poll(200, { status: 'Succeeded' })]);
+    await awaitDataPlaneDeploy(ctx, response(202, { operationId: 'a1' }), target);
+    assert.equal(calls[0]?.url, `${ORIGIN}/operationResults/a1?api-version=2019-06-01-preview`);
+  });
+
+  it('uses the given base for endpoints and for ARM', async () => {
+    for (const base of ['/managedVirtualNetworks/default', '/subscriptions/s/providers/w']) {
+      const { ctx, calls } = context([poll(200, { name: 'x' })]);
+      await awaitDataPlaneDeploy(ctx, response(202, { operationId: 'a1' }), {
+        ...target,
+        name: 'x',
+        operationBase: base,
+      });
+      assert.equal(
+        calls[0]?.url,
+        `${ORIGIN}${base}/operationResults/a1?api-version=2019-06-01-preview`,
+      );
+    }
+  });
+});
+
+describe('Retry-After handling (nits)', () => {
+  it('waits at least 1 s for a Retry-After of 0 or a date in the past', () => {
+    const now = Date.UTC(2026, 9, 9, 12, 0, 0);
+    assert.equal(pollWaitMs({ 'retry-after': '0' }, 1, now), 1000);
+    assert.equal(pollWaitMs({ 'retry-after': 'Fri, 09 Oct 2026 11:00:00 GMT' }, 1, now), 1000);
+  });
+
+  it("honours the initial answer's Retry-After before the first poll, and only then", async () => {
+    const first = context([poll(200, { name: 'pl_load' })]);
+    await awaitDataPlaneDeploy(
+      first.ctx,
+      response(
+        202,
+        { operationId: 'op1' },
+        { location: '/operationResults/op1', 'retry-after': '6' },
+      ),
+      target,
+    );
+    assert.deepEqual(first.waits, [6000]);
+    const second = context([poll(200, { name: 'pl_load' })]);
+    await awaitDataPlaneDeploy(second.ctx, operation('op1'), target);
+    assert.deepEqual(second.waits, []);
+  });
+});
+
+describe('lake database entity answers (S3)', () => {
+  const lenient = { ...target, lenient: true };
+
+  it('accepts 200, 201 and 204, polls a 202 with Location, fails a 202 without one', async () => {
+    for (const status of [200, 201, 204]) {
+      await awaitDataPlaneDeploy(context([]).ctx, response(status), lenient);
+    }
+    const { ctx, calls } = context([poll(200, {})]);
+    await awaitDataPlaneDeploy(
+      ctx,
+      response(202, undefined, { location: '/operationResults/op1?api-version=x' }),
+      lenient,
+    );
+    assert.equal(calls.length, 1);
+    const err = await rejection(awaitDataPlaneDeploy(context([]).ctx, response(202), lenient));
+    assert.match(err.message, /202 without an operation ID or Location/);
+  });
+
+  it('fails a PUT that is not 2xx', async () => {
+    const err = await rejection(
+      awaitDataPlaneDeploy(
+        context([]).ctx,
+        response(409, { error: { message: 'conflict' } }),
+        lenient,
+      ),
+    );
+    assert.match(err.message, /409/);
+  });
+});
+
+describe('clearly terminal states fail fast; unknown ones keep waiting', () => {
+  const endpointUrl = `${ORIGIN}/managedVirtualNetworks/default/managedPrivateEndpoints/pe?api-version=2019-06-01-preview`;
+  const endpointTarget = { scope: SCOPE, label: 'managedPrivateEndpoints/pe', name: 'pe' };
+  const put = response(200, { name: 'pe' }, {}, 'PUT', endpointUrl);
+  const state = (provisioningState: string) =>
+    response(200, { properties: { provisioningState } }, {}, 'GET', endpointUrl);
+
+  it('endpoint provisioning: Canceled, Rejected and Deleted fail; Strange waits', async () => {
+    for (const bad of ['Canceled', 'Rejected', 'Deleted']) {
+      const { ctx } = context([state(bad)]);
+      const err = await rejection(awaitEndpointDeploy(ctx, put, endpointTarget));
+      assert.match(err.message, /provisioning /);
+    }
+    const { ctx, calls } = context([state('Strange'), state('Succeeded')]);
+    await awaitEndpointDeploy(ctx, put, endpointTarget);
+    assert.equal(calls.length, 2);
+  });
+
+  it('ARM async operation: Rejected fails, an unknown status waits', async () => {
+    const armPut = response(201, {}, { 'azure-asyncoperation': `${ORIGIN}/asyncOperations/a1` });
+    const asyncOp = (body: unknown) =>
+      response(200, body, {}, 'GET', `${ORIGIN}/asyncOperations/a1`);
+    const { ctx } = context([asyncOp({ status: 'Rejected', error: { message: 'no' } })]);
+    await rejection(awaitArmDeploy(ctx, armPut, { scope: SCOPE, label: 'ir', name: 'ir' }));
+    const waiting = context([asyncOp({ status: 'Strange' }), asyncOp({ status: 'Succeeded' })]);
+    await awaitArmDeploy(waiting.ctx, armPut, { scope: SCOPE, label: 'ir', name: 'ir' });
+    assert.equal(waiting.calls.length, 2);
   });
 });

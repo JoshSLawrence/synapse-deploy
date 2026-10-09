@@ -177,15 +177,17 @@ describe('fake Synapse server: lists and paging', () => {
 
   it('stores and deletes database children, and 404s for the absent', async () => {
     const fake = await start();
+    const L = '?api-version=2021-04-01';
     fake.seedDatabase('db1');
     assert.equal(
-      (await call(fake, 'PUT', '/databases/db1/tables/t1', { body: { properties: {} } })).status,
+      (await call(fake, 'PUT', `/databases/db1/tables/t1${L}`, { body: { properties: {} } }))
+        .status,
       200,
     );
     assert.deepEqual(fake.databaseChildren('db1', 'tables'), ['t1']);
-    assert.equal((await call(fake, 'DELETE', '/databases/db1/tables/t1')).status, 200);
-    assert.equal((await call(fake, 'DELETE', '/databases/db1/tables/t1')).status, 404);
-    assert.equal((await call(fake, 'GET', '/databases/absent')).status, 404);
+    assert.equal((await call(fake, 'DELETE', `/databases/db1/tables/t1${L}`)).status, 200);
+    assert.equal((await call(fake, 'DELETE', `/databases/db1/tables/t1${L}`)).status, 404);
+    assert.equal((await call(fake, 'GET', `/databases/absent${L}`)).status, 404);
   });
 });
 
@@ -208,14 +210,18 @@ describe('fake Synapse server: DELETE', () => {
     }
   });
 
-  it('refuses to update or delete a started trigger with a message that says "started"', async () => {
+  it('refuses to update or delete an enabled trigger with the code and message Synapse uses', async () => {
     const fake = await start();
     fake.seed('triggers', [{ name: 'tr', properties: { runtimeState: 'Started' } }]);
     const del = await call(fake, 'DELETE', `/triggers/tr${V}`);
     assert.equal(del.status, 400);
-    assert.match(JSON.stringify(del.json), /started/);
+    assert.match(JSON.stringify(del.json), /disabled first/);
     const put = await call(fake, 'PUT', `/triggers/tr${V}`, { body: { properties: {} } });
     assert.equal(put.status, 400);
+    assert.deepEqual(put.json?.error, {
+      code: 'TriggerEnabledCannotUpdate',
+      message: 'Cannot update enabled Trigger; the trigger needs to be disabled first.',
+    });
     assert.deepEqual(fake.names('triggers'), ['tr']);
   });
 });
@@ -434,5 +440,98 @@ describe('fake Synapse server: recording and helpers', () => {
     assert.equal(third.status, 202);
     assert.equal(fake.maxConcurrentOperations, 2, 'finished operations no longer count');
     assert.ok(fake.maxConcurrentRequests >= 1);
+  });
+});
+
+describe('fake Synapse server: api-version, operation paths and metrics', () => {
+  it('answers 400 unless the api-version fits the path', async () => {
+    const fake = await start({ putMode: 'sync' });
+    for (const path of [
+      '/pipelines/p',
+      '/pipelines/p?api-version=2021-04-01',
+      '/pipelines/p?api-version=1',
+    ]) {
+      const res = await call(fake, 'PUT', path, { body: {} });
+      assert.equal(res.status, 400, path);
+      assert.match(res.text, /InvalidApiVersionParameter/);
+    }
+    assert.equal(
+      (await call(fake, 'GET', '/databases?api-version=2019-06-01-preview')).status,
+      400,
+    );
+    assert.equal((await call(fake, 'GET', '/databases?api-version=2021-04-01')).status, 200);
+    const arm =
+      '/subscriptions/s/resourceGroups/r/providers/Microsoft.Synapse/workspaces/w/integrationRuntimes/ir';
+    assert.equal(
+      (await call(fake, 'GET', `${arm}?api-version=2021-04-01`, { headers: ARM })).status,
+      400,
+    );
+    assert.equal((await call(fake, 'GET', `${arm}${V}`, { headers: ARM })).status, 404);
+  });
+
+  it('serves an endpoint operation only under its own operationResults base', async () => {
+    const fake = await start({ endpointPutMode: 'lro-no-location', lroPolls: 0 });
+    const put = await call(
+      fake,
+      'PUT',
+      `/managedVirtualNetworks/default/managedPrivateEndpoints/pe${V}`,
+      { body: {} },
+    );
+    const id = put.json?.operationId as string;
+    assert.equal(put.headers.get('location'), null);
+    assert.equal((await call(fake, 'GET', `/operationResults/${id}${V}`)).status, 404);
+    const ok = await call(
+      fake,
+      'GET',
+      `/managedVirtualNetworks/default/operationResults/${id}${V}`,
+    );
+    assert.equal(ok.status, 200);
+  });
+
+  it('operation-id ARM mode is served under the workspace path', async () => {
+    const fake = await start({ armMode: 'operation-id', lroPolls: 0 });
+    const ws = '/subscriptions/s/resourceGroups/r/providers/Microsoft.Synapse/workspaces/w';
+    const put = await call(fake, 'PUT', `${ws}/integrationRuntimes/ir${V}`, {
+      headers: ARM,
+      body: {},
+    });
+    assert.equal(put.status, 202);
+    const id = put.json?.operationId as string;
+    assert.equal((await call(fake, 'GET', `/operationResults/${id}${V}`)).status, 404);
+    assert.equal(
+      (await call(fake, 'GET', `${ws}/operationResults/${id}${V}`, { headers: ARM })).status,
+      200,
+    );
+  });
+
+  it('location-only uses armPolls', async () => {
+    const fake = await start({ armMode: 'location-only', armPolls: 3, lroPolls: 0 });
+    const put = await call(
+      fake,
+      'PUT',
+      `/subscriptions/s/resourceGroups/r/providers/Microsoft.Synapse/workspaces/w/integrationRuntimes/ir${V}`,
+      { headers: ARM, body: {} },
+    );
+    const location = put.headers.get('location') ?? '';
+    const statuses = [];
+    for (let i = 0; i < 4; i++) {
+      statuses.push((await call(fake, 'GET', location, { headers: ARM })).status);
+    }
+    assert.deepEqual(statuses, [202, 202, 202, 200]);
+  });
+
+  it('keeps an endpoint write open until its provisioning ends, and resetMetrics closes the rest', async () => {
+    const fake = await start({ endpointPutMode: 'sync', endpointPolls: 1 });
+    const base = '/managedVirtualNetworks/default/managedPrivateEndpoints';
+    await call(fake, 'PUT', `${base}/a${V}`, { body: {} });
+    await call(fake, 'PUT', `${base}/b${V}`, { body: {} });
+    assert.equal(fake.maxConcurrentOperations, 2);
+    fake.resetMetrics();
+    assert.equal(fake.maxConcurrentOperations, 0);
+    await call(fake, 'PUT', `${base}/c${V}`, { body: {} });
+    await call(fake, 'GET', `${base}/c${V}`);
+    await call(fake, 'GET', `${base}/c${V}`);
+    await call(fake, 'PUT', `${base}/d${V}`, { body: {} });
+    assert.equal(fake.maxConcurrentOperations, 1, 'c finished provisioning before d started');
   });
 });

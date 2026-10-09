@@ -3,10 +3,11 @@
 
 import * as core from '@actions/core';
 import { HttpError, responseError } from './http.ts';
-import { artifactPath } from './kinds.ts';
+import { artifactPath, DEFAULT_API_VERSION } from './kinds.ts';
 import { asRecord, awaitDataPlaneDeploy, awaitDelete, awaitEndpointDeploy } from './lro.ts';
 import { deployLakeDatabase } from './lakedb.ts';
 import type { Kind } from './kinds.ts';
+import type { Response } from './http.ts';
 import type { LroContext } from './lro.ts';
 
 export interface SynapseContext extends LroContext {
@@ -15,6 +16,14 @@ export interface SynapseContext extends LroContext {
   /** Token scope of the development endpoint. */
   scope: string;
 }
+
+// Where the service reports operations that have no Location header.
+const ENDPOINT_OPERATION_BASE = '/managedVirtualNetworks/default';
+
+// Synapse says "Cannot update enabled Trigger; the trigger needs to be
+// disabled first." (code TriggerEnabledCannotUpdate). Only the service's text
+// is matched: the artifact's own name may contain "started".
+const TRIGGER_ENABLED = /TriggerEnabledCannotUpdate|enabled trigger|disabled first|started/i;
 
 const TRIGGER_HINT = 'Stop the trigger first; the deployer does not start or stop triggers.';
 
@@ -29,13 +38,15 @@ function describe(kind: Kind, name: string): string {
 // Synapse refuses to update or delete a started trigger, and its message is
 // the only hint; the fix (stop it) belongs to the caller of the deployer.
 function withTriggerHint(kind: Kind, err: unknown): unknown {
-  if (kind.id !== 'triggers' || !(err instanceof Error) || !/started/i.test(err.message)) {
+  if (
+    kind.id !== 'triggers' ||
+    !(err instanceof HttpError) ||
+    !TRIGGER_ENABLED.test(err.serviceMessage)
+  ) {
     return err;
   }
   const message = `${err.message} ${TRIGGER_HINT}`;
-  return err instanceof HttpError
-    ? new HttpError(message, err.status, err.serviceMessage, err)
-    : new Error(message, { cause: err });
+  return new HttpError(message, err.status, err.serviceMessage, err);
 }
 
 /**
@@ -88,7 +99,12 @@ export async function deployArtifact(
           ctx.scope,
           prepareEndpointBody(body),
         );
-        await awaitEndpointDeploy(ctx, put, { scope: ctx.scope, label, name });
+        await awaitEndpointDeploy(ctx, put, {
+          scope: ctx.scope,
+          label,
+          name,
+          operationBase: ENDPOINT_OPERATION_BASE,
+        });
         return;
       }
       case 'lakedb':
@@ -127,20 +143,23 @@ export async function deleteArtifact(ctx: SynapseContext, kind: Kind, name: stri
 /**
  * Whether the workspace has a managed virtual network, from the endpoint list.
  * Only the "does not have a managed virtual network associated" answer means
- * no; any other failure is a real error, never "nothing to do".
+ * no; any other failure is a real error, never "nothing to do". The first
+ * response is returned too, so the deletion listing can reuse its first page.
  */
-export async function hasManagedVirtualNetwork(ctx: SynapseContext): Promise<boolean> {
-  const res = await ctx.http.request(
+export async function hasManagedVirtualNetwork(
+  ctx: SynapseContext,
+): Promise<{ exists: boolean; response: Response }> {
+  const response = await ctx.http.request(
     'GET',
-    `${ctx.dataPlane}/managedVirtualNetworks/default/managedPrivateEndpoints?api-version=2019-06-01-preview`,
+    `${ctx.dataPlane}/managedVirtualNetworks/default/managedPrivateEndpoints?api-version=${DEFAULT_API_VERSION}`,
     ctx.scope,
   );
-  if (res.status >= 200 && res.status < 300) {
-    return true;
+  if (response.status >= 200 && response.status < 300) {
+    return { exists: true, response };
   }
-  if (res.text.toLowerCase().includes(NO_MANAGED_VNET)) {
+  if (response.text.toLowerCase().includes(NO_MANAGED_VNET)) {
     core.debug('The workspace has no managed virtual network');
-    return false;
+    return { exists: false, response };
   }
-  throw responseError(res);
+  throw responseError(response);
 }

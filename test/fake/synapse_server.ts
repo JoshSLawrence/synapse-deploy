@@ -1,7 +1,7 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { armScope, dataPlaneScope, findCloud } from '../../src/cloud.ts';
-import { DEFAULT_API_VERSION, KINDS } from '../../src/kinds.ts';
+import { DEFAULT_API_VERSION, KINDS, LAKE_DATABASE_API_VERSION } from '../../src/kinds.ts';
 import type { TokenProvider } from '../../src/auth.ts';
 
 /**
@@ -14,6 +14,12 @@ import type { TokenProvider } from '../../src/auth.ts';
 
 const NO_MANAGED_VNET_MESSAGE =
   'The workspace does not have a managed virtual network associated with it.';
+// The update message is what Synapse answers; the delete one is assumed to
+// follow the same wording.
+const TRIGGER_UPDATE_MESSAGE =
+  'Cannot update enabled Trigger; the trigger needs to be disabled first.';
+const TRIGGER_DELETE_MESSAGE =
+  'Cannot delete enabled Trigger; the trigger needs to be disabled first.';
 const DATA_TOKEN = 'fake-data-token';
 const ARM_TOKEN = 'fake-arm-token';
 
@@ -30,16 +36,17 @@ export interface FakeConfig {
   pageSize: number;
   hasManagedVnet: boolean;
   /** Endpoint PUT: 200 + `Provisioning` (`sync`) or an operation first (`lro`). */
-  endpointPutMode: 'sync' | 'lro';
+  endpointPutMode: 'sync' | 'lro' | 'lro-no-location';
   /** GETs of an endpoint that answer `Provisioning` before the final state. */
   endpointPolls: number;
   endpointFinalState: 'Succeeded' | 'Failed';
   /**
    * Integration runtime PUT: `async-operation` (201 + Azure-AsyncOperation),
-   * `location-only` (202 + Location), `provisioning-body` (200 + Provisioning,
+   * `location-only` (202 + Location), `operation-id` (202 + operationId and no
+   * Location, served under the workspace path), `provisioning-body` (200 + Provisioning,
    * then GETs of the resource) or `sync` (200 + Succeeded).
    */
-  armMode: 'async-operation' | 'location-only' | 'provisioning-body' | 'sync';
+  armMode: 'async-operation' | 'location-only' | 'operation-id' | 'provisioning-body' | 'sync';
   /** How many times an ARM operation or resource GET answers "in progress". */
   armPolls: number;
   /** Delay before every answer, so that concurrent operations overlap. */
@@ -80,9 +87,13 @@ interface Stored {
   name: string;
   body: Record<string, unknown>;
   gets: number;
+  /** Ends the write's operation when provisioning finishes (endpoints, ARM). */
+  release?: () => void;
 }
 
 interface Operation {
+  /** The path prefix of its operationResults collection; "" at the root. */
+  base: string;
   remaining: number;
   flavor: 'data' | 'async' | 'location';
   body: unknown;
@@ -118,6 +129,8 @@ export interface FakeSynapse {
   maxConcurrentRequests: number;
   /** Writes (PUT, DELETE) that have not finished, counting an operation until it completes. */
   maxConcurrentOperations: number;
+  /** Ends every open operation and zeroes the maxima; use after a test abandons operations. */
+  resetMetrics(): void;
   writes(): RecordedRequest[];
   seed(collection: string, items: SeedItem[]): void;
   seedDatabase(
@@ -184,6 +197,9 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       canonical.set(kind.collection.toLowerCase(), kind.collection);
     }
   }
+  const armVersion =
+    KINDS.find((kind) => kind.id === 'integrationRuntimes')?.apiVersion ?? DEFAULT_API_VERSION;
+  const ENDPOINT_BASE = '/managedVirtualNetworks/default';
   const endpointCollection = 'managedVirtualNetworks/default/managedPrivateEndpoints';
   const databases = new Map<string, Database>();
   const integrationRuntimes = new Map<string, Stored>();
@@ -201,16 +217,18 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     maxConcurrentOperations: 0,
   };
 
+  const openEnds = new Set<() => void>();
+
   function beginOperation(): () => void {
     openOperations++;
     state.maxConcurrentOperations = Math.max(state.maxConcurrentOperations, openOperations);
-    let ended = false;
-    return () => {
-      if (!ended) {
-        ended = true;
+    const end = () => {
+      if (openEnds.delete(end)) {
         openOperations--;
       }
     };
+    openEnds.add(end);
+    return end;
   }
 
   const tokens: TokenProvider = {
@@ -256,6 +274,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     writing.adopted = true;
     const end = writing.end;
     operations.set(id, {
+      base: '',
       remaining: config.lroPolls,
       failMessage: failures.get(name.toLowerCase()),
       goneAfter: false,
@@ -313,6 +332,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     stored: Stored,
     mode: 'sync' | 'lro' | 'lro-no-location',
     apiVersion: string,
+    base: string,
     writing: Writing,
   ): void {
     if (mode === 'sync') {
@@ -320,7 +340,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       return;
     }
     const id = newOperation(
-      { flavor: 'data', body: resource(collection, stored) },
+      { flavor: 'data', body: resource(collection, stored), base },
       stored.name,
       writing,
     );
@@ -328,7 +348,9 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       res,
       202,
       { operationId: id },
-      mode === 'lro' ? { Location: `/operationResults/${id}?api-version=${apiVersion}` } : {},
+      mode === 'lro'
+        ? { Location: `${base}/operationResults/${id}?api-version=${apiVersion}` }
+        : {},
     );
   }
 
@@ -381,6 +403,9 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
           ...record(existing.body.properties),
           provisioningState: state,
         };
+        if (state !== 'Provisioning') {
+          existing.release?.();
+        }
       }
       send(res, 200, resource(collection, existing));
       return;
@@ -389,16 +414,23 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       const written = record(structuredClone(body));
       if (collection === 'triggers' && existing?.body.properties !== undefined) {
         if (record(existing.body.properties).runtimeState === 'Started') {
-          error(res, 400, 'BadRequest', `Cannot update trigger ${name} because it is started.`);
+          error(res, 400, 'TriggerEnabledCannotUpdate', TRIGGER_UPDATE_MESSAGE);
           return;
         }
       }
       const stored: Stored = { name, body: written, gets: 0 };
+      let answering = writing;
       if (isEndpoint) {
         stored.body.properties = {
           ...record(written.properties),
           provisioningState: 'Provisioning',
         };
+        // The write stays open until the client's provisioning wait can end,
+        // however the PUT itself was answered.
+        existing?.release?.();
+        stored.release = writing.end;
+        writing.adopted = true;
+        answering = { end: () => undefined, adopted: false };
       }
       items.set(key, stored);
       putAnswer(
@@ -407,7 +439,8 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
         stored,
         isEndpoint ? config.endpointPutMode : config.putMode,
         apiVersion,
-        writing,
+        isEndpoint ? ENDPOINT_BASE : '',
+        answering,
       );
       return;
     }
@@ -417,11 +450,12 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
         return;
       }
       if (record(existing.body.properties).runtimeState === 'Started') {
-        error(res, 400, 'BadRequest', `Cannot delete ${name} because it is started.`);
+        error(res, 400, 'TriggerEnabledCannotDelete', TRIGGER_DELETE_MESSAGE);
         return;
       }
+      existing.release?.();
       items.delete(key);
-      finishDelete(res, name, apiVersion, writing);
+      finishDelete(res, name, apiVersion, isEndpoint ? ENDPOINT_BASE : '', writing);
       return;
     }
     error(res, 405, 'MethodNotAllowed', method);
@@ -431,6 +465,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     res: http.ServerResponse,
     name: string,
     apiVersion: string,
+    base: string,
     writing: Writing,
   ): void {
     if (config.deleteMode === 'sync') {
@@ -442,18 +477,36 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
         flavor: 'data',
         body: { status: 'Succeeded' },
         goneAfter: config.deleteCompletion === 'not-found',
+        base,
       },
       name,
       writing,
     );
     send(res, 202, undefined, {
-      Location: `/operationResults/${id}?api-version=${apiVersion}`,
+      Location: `${base}/operationResults/${id}?api-version=${apiVersion}`,
     });
   }
 
-  function handleOperation(res: http.ServerResponse, id: string): void {
+  const OPERATION_FLAVOR = {
+    operationresults: 'data',
+    asyncoperations: 'async',
+    armoperations: 'location',
+  } as const;
+
+  // An operation is only reachable where the service would serve it, so a
+  // client that polls the wrong operationResults base gets a 404.
+  function handleOperation(
+    res: http.ServerResponse,
+    id: string,
+    collection: keyof typeof OPERATION_FLAVOR,
+    base: string,
+  ): void {
     const op = operations.get(id);
-    if (op === undefined) {
+    if (
+      op === undefined ||
+      op.flavor !== OPERATION_FLAVOR[collection] ||
+      (collection === 'operationresults' && op.base !== base)
+    ) {
       error(res, 404, 'NotFound', `Operation ${id} was not found`);
       return;
     }
@@ -592,10 +645,14 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       existing.gets++;
       const state = existing.gets > config.armPolls ? 'Succeeded' : 'Provisioning';
       existing.body.properties = { ...record(existing.body.properties), provisioningState: state };
+      if (state === 'Succeeded') {
+        existing.release?.();
+      }
       send(res, 200, { id: pathname, ...existing.body, name });
       return;
     }
     if (method === 'DELETE') {
+      existing?.release?.();
       integrationRuntimes.delete(key);
       send(res, 200, {});
       return;
@@ -610,6 +667,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       ...record(stored.body.properties),
       provisioningState: sync ? 'Succeeded' : 'Provisioning',
     };
+    existing?.release?.();
     integrationRuntimes.set(key, stored);
     const answer = { id: pathname, ...stored.body, name };
     switch (config.armMode) {
@@ -617,11 +675,24 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
         send(res, 200, answer);
         return;
       case 'provisioning-body':
+        // Open until the client's GETs see Succeeded.
+        stored.release = writing.end;
+        writing.adopted = true;
         send(res, 200, answer);
         return;
+      case 'operation-id': {
+        const base = `/${segments.slice(0, -2).join('/')}`;
+        const id = newOperation({ flavor: 'data', body: answer, base }, name, writing);
+        send(res, 202, { operationId: id });
+        return;
+      }
       case 'location-only': {
-        const id = newOperation({ flavor: 'location', body: answer }, name, writing);
-        send(res, 202, undefined, { Location: `/armOperations/${id}` });
+        const id = newOperation(
+          { flavor: 'location', body: answer, remaining: config.armPolls },
+          name,
+          writing,
+        );
+        send(res, 202, undefined, { Location: `/armOperations/${id}?api-version=${armVersion}` });
         return;
       }
       case 'async-operation': {
@@ -630,7 +701,9 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
           name,
           writing,
         );
-        send(res, 201, answer, { 'Azure-AsyncOperation': `${origin}/asyncOperations/${id}` });
+        send(res, 201, answer, {
+          'Azure-AsyncOperation': `${origin}/asyncOperations/${id}?api-version=${armVersion}`,
+        });
         return;
       }
     }
@@ -701,8 +774,26 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       );
       return;
     }
-    if (first === 'operationresults' || first === 'asyncoperations' || first === 'armoperations') {
-      handleOperation(res, segments[1] ?? '');
+    const expectedVersion =
+      first === 'databases' ? LAKE_DATABASE_API_VERSION : isArm ? armVersion : DEFAULT_API_VERSION;
+    const version = url.searchParams.get('api-version');
+    if (version !== expectedVersion) {
+      error(
+        res,
+        400,
+        'InvalidApiVersionParameter',
+        `The api-version '${version ?? ''}' is invalid here; use '${expectedVersion}'.`,
+      );
+      return;
+    }
+    const operationAt = segments.findIndex(
+      (segment) => segment.toLowerCase() === 'operationresults',
+    );
+    if (first === 'asyncoperations' || first === 'armoperations') {
+      handleOperation(res, segments[1] ?? '', first, '');
+    } else if (operationAt >= 0) {
+      const base = operationAt === 0 ? '' : `/${segments.slice(0, operationAt).join('/')}`;
+      handleOperation(res, segments[operationAt + 1] ?? '', 'operationresults', base);
     } else if (first === 'subscriptions') {
       handleArm(req, res, segments, url.pathname, body, writing);
     } else if (first === 'databases') {
@@ -815,6 +906,13 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     },
     get maxConcurrentOperations() {
       return state.maxConcurrentOperations;
+    },
+    resetMetrics() {
+      for (const end of [...openEnds]) {
+        end();
+      }
+      state.maxConcurrentRequests = 0;
+      state.maxConcurrentOperations = 0;
     },
     writes: () => requests.filter((r) => r.method === 'PUT' || r.method === 'DELETE'),
     seed(collection, seeded) {
