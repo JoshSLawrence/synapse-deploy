@@ -228,7 +228,10 @@ class Scope implements EvalContext {
     return this.once(`variables('${variable.name}')`, `v:${key}`, () => this.deep(variable.raw));
   }
 
-  private once(label: string, key: string, compute: () => Json): Json {
+  private once(label: string, baseKey: string, compute: () => Json): Json {
+    // The result depends on whether resourceId is allowed, so a value
+    // accepted in dependsOn must not be reused in a property.
+    const key = `${baseKey}:${this.allowResourceId}`;
     const cached = this.cache.get(key);
     if (cached !== undefined) {
       return cached;

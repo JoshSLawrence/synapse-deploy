@@ -615,6 +615,18 @@ describe('template: review fixes', () => {
     );
   });
 
+  it('does not reuse a variable accepted in dependsOn for a property', () => {
+    const rid = "[resourceId('Microsoft.Synapse/workspaces/notebooks', 'ws', 'nb')]";
+    const user = pipeline('first', {}, ["[variables('rid')]"]);
+    const other = pipeline('second', { v: "[variables('rid')]" });
+    const text = template({}, [user, other], { rid });
+    assert.throws(
+      () => load(text),
+      /second.*properties\.v: .*only supported in a resource name and in dependsOn/s,
+    );
+    assert.throws(() => load(template({}, [other, user], { rid })), /properties\.v/);
+  });
+
   it('labels an error with the evaluated resource name', () => {
     const text = template({}, [pipeline('pl_named', { v: "[parameters('nope')]" })]);
     assert.throws(() => load(text), /resources\[0\] pl_named|resources\[0\] myworkspace\/pl_named/);
