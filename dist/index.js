@@ -4091,11 +4091,11 @@ var require_util2 = __commonJS({
     var { isUint8Array } = __require("node:util/types");
     var { webidl } = require_webidl();
     var supportedHashes = [];
-    var crypto3;
+    var crypto4;
     try {
-      crypto3 = __require("node:crypto");
+      crypto4 = __require("node:crypto");
       const possibleRelevantHashes = ["sha256", "sha384", "sha512"];
-      supportedHashes = crypto3.getHashes().filter((hash) => possibleRelevantHashes.includes(hash));
+      supportedHashes = crypto4.getHashes().filter((hash) => possibleRelevantHashes.includes(hash));
     } catch {
     }
     function responseURL(response) {
@@ -4368,7 +4368,7 @@ var require_util2 = __commonJS({
       }
     }
     function bytesMatch(bytes, metadataList) {
-      if (crypto3 === void 0) {
+      if (crypto4 === void 0) {
         return true;
       }
       const parsedMetadata = parseMetadata(metadataList);
@@ -4383,7 +4383,7 @@ var require_util2 = __commonJS({
       for (const item of metadata) {
         const algorithm = item.algo;
         const expectedValue = item.hash;
-        let actualValue = crypto3.createHash(algorithm).update(bytes).digest("base64");
+        let actualValue = crypto4.createHash(algorithm).update(bytes).digest("base64");
         if (actualValue[actualValue.length - 1] === "=") {
           if (actualValue[actualValue.length - 2] === "=") {
             actualValue = actualValue.slice(0, -2);
@@ -4513,9 +4513,9 @@ var require_util2 = __commonJS({
          * @param {unknown} target
          * @param {'key' | 'value' | 'key+value'} kind
          */
-        constructor(target, kind) {
+        constructor(target, kind2) {
           this.#target = target;
-          this.#kind = kind;
+          this.#kind = kind2;
           this.#index = 0;
         }
         next() {
@@ -4564,8 +4564,8 @@ var require_util2 = __commonJS({
         },
         next: { writable: true, enumerable: true, configurable: true }
       });
-      return function(target, kind) {
-        return new FastIterableIterator(target, kind);
+      return function(target, kind2) {
+        return new FastIterableIterator(target, kind2);
       };
     }
     function iteratorMixin(name3, object, kInternalIterator, keyIndex = 0, valueIndex = 1) {
@@ -4859,8 +4859,8 @@ var require_util2 = __commonJS({
       }
       return values;
     }
-    function getDecodeSplit(name3, list) {
-      const value = list.get(name3, true);
+    function getDecodeSplit(name3, list2) {
+      const value = list2.get(name3, true);
       if (value === null) {
         return null;
       }
@@ -5447,8 +5447,8 @@ var require_body = __commonJS({
     var { multipartFormDataParser } = require_formdata_parser();
     var random;
     try {
-      const crypto3 = __require("node:crypto");
-      random = (max) => crypto3.randomInt(0, max);
+      const crypto4 = __require("node:crypto");
+      random = (max) => crypto4.randomInt(0, max);
     } catch {
       random = (max) => Math.floor(Math.random(max));
     }
@@ -5860,7 +5860,7 @@ var require_client_h1 = __commonJS({
     var TIMEOUT_HEADERS = 2 | USE_FAST_TIMER;
     var TIMEOUT_BODY = 4 | USE_FAST_TIMER;
     var TIMEOUT_KEEP_ALIVE = 8 | USE_NATIVE_TIMER;
-    var Parser = class {
+    var Parser2 = class {
       constructor(client, socket, { exports: exports2 }) {
         assert(Number.isFinite(client[kMaxHeadersSize]) && client[kMaxHeadersSize] > 0);
         this.llhttp = exports2;
@@ -6287,7 +6287,7 @@ var require_client_h1 = __commonJS({
       socket[kIdleSocketValidation] = 0;
       socket[kIdleSocketValidationTimeout] = null;
       socket[kSocketUsed] = false;
-      socket[kParser] = new Parser(client, socket, llhttpInstance);
+      socket[kParser] = new Parser2(client, socket, llhttpInstance);
       addListener(socket, "error", function(err) {
         assert(err.code !== "ERR_TLS_CERT_ALTNAME_INVALID");
         const parser = this[kParser];
@@ -12271,9 +12271,9 @@ var require_headers = __commonJS({
       // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
       getSetCookie() {
         webidl.brandCheck(this, _Headers);
-        const list = this.#headersList.cookies;
-        if (list) {
-          return [...list];
+        const list2 = this.#headersList.cookies;
+        if (list2) {
+          return [...list2];
         }
         return [];
       }
@@ -12313,8 +12313,8 @@ var require_headers = __commonJS({
       static getHeadersList(o) {
         return o.#headersList;
       }
-      static setHeadersList(o, list) {
-        o.#headersList = list;
+      static setHeadersList(o, list2) {
+        o.#headersList = list2;
       }
     };
     var { getHeadersGuard, setHeadersGuard, getHeadersList, setHeadersList } = Headers3;
@@ -13282,13 +13282,13 @@ var require_request2 = __commonJS({
         if (this.signal.aborted) {
           ac.abort(this.signal.reason);
         } else {
-          let list = dependentControllerMap.get(this.signal);
-          if (list === void 0) {
-            list = /* @__PURE__ */ new Set();
-            dependentControllerMap.set(this.signal, list);
+          let list2 = dependentControllerMap.get(this.signal);
+          if (list2 === void 0) {
+            list2 = /* @__PURE__ */ new Set();
+            dependentControllerMap.set(this.signal, list2);
           }
           const acRef = new WeakRef(ac);
-          list.add(acRef);
+          list2.add(acRef);
           util2.addAbortListener(
             ac.signal,
             buildAbort(acRef)
@@ -17088,13 +17088,13 @@ var require_frame = __commonJS({
     "use strict";
     var { maxUnsigned16Bit } = require_constants5();
     var BUFFER_SIZE = 16386;
-    var crypto3;
+    var crypto4;
     var buffer = null;
     var bufIdx = BUFFER_SIZE;
     try {
-      crypto3 = __require("node:crypto");
+      crypto4 = __require("node:crypto");
     } catch {
-      crypto3 = {
+      crypto4 = {
         // not full compatibility, but minimum.
         randomFillSync: function randomFillSync(buffer2, _offset, _size) {
           for (let i = 0; i < buffer2.length; ++i) {
@@ -17107,7 +17107,7 @@ var require_frame = __commonJS({
     function generateMask() {
       if (bufIdx === BUFFER_SIZE) {
         bufIdx = 0;
-        crypto3.randomFillSync(buffer ??= Buffer.allocUnsafe(BUFFER_SIZE), 0, BUFFER_SIZE);
+        crypto4.randomFillSync(buffer ??= Buffer.allocUnsafe(BUFFER_SIZE), 0, BUFFER_SIZE);
       }
       return [buffer[bufIdx++], buffer[bufIdx++], buffer[bufIdx++], buffer[bufIdx++]];
     }
@@ -17179,9 +17179,9 @@ var require_connection = __commonJS({
     var { Headers: Headers3, getHeadersList } = require_headers();
     var { getDecodeSplit } = require_util2();
     var { WebsocketFrameSend } = require_frame();
-    var crypto3;
+    var crypto4;
     try {
-      crypto3 = __require("node:crypto");
+      crypto4 = __require("node:crypto");
     } catch {
     }
     function establishWebSocketConnection(url, protocols, client, ws, onEstablish, options) {
@@ -17201,7 +17201,7 @@ var require_connection = __commonJS({
         const headersList = getHeadersList(new Headers3(options.headers));
         request.headersList = headersList;
       }
-      const keyValue = crypto3.randomBytes(16).toString("base64");
+      const keyValue = crypto4.randomBytes(16).toString("base64");
       request.headersList.append("sec-websocket-key", keyValue);
       request.headersList.append("sec-websocket-version", "13");
       for (const protocol of protocols) {
@@ -17231,7 +17231,7 @@ var require_connection = __commonJS({
             return;
           }
           const secWSAccept = response.headersList.get("Sec-WebSocket-Accept");
-          const digest = crypto3.createHash("sha1").update(keyValue + uid).digest("base64");
+          const digest = crypto4.createHash("sha1").update(keyValue + uid).digest("base64");
           if (secWSAccept !== digest) {
             failWebsocketConnection(ws, "Incorrect hash received in Sec-WebSocket-Accept header.");
             return;
@@ -19396,14 +19396,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/@azure/msal-node/node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
-    var crypto3 = __require("crypto");
+    var crypto4 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util2 = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto3.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto4.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -19493,17 +19493,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto3.createHmac("sha" + bits, secret);
+        var hmac = crypto4.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto3 ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual = "timingSafeEqual" in crypto4 ? function timingSafeEqual2(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto3.timingSafeEqual(a, b);
+      return crypto4.timingSafeEqual(a, b);
     } : function timingSafeEqual2(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -19520,7 +19520,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto3.createSign("RSA-SHA" + bits);
+        var signer = crypto4.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -19530,7 +19530,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto3.createVerify("RSA-SHA" + bits);
+        var verifier = crypto4.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -19539,11 +19539,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto3.createSign("RSA-SHA" + bits);
+        var signer = crypto4.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto3.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto3.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -19553,12 +19553,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto3.createVerify("RSA-SHA" + bits);
+        var verifier = crypto4.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto3.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto3.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -19715,11 +19715,11 @@ var require_verify_stream = __commonJS({
     var toString = require_tostring();
     var util2 = __require("util");
     var JWS_REGEX = /^[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+?\.([a-zA-Z0-9\-_]+)?$/;
-    function isObject2(thing) {
+    function isObject3(thing) {
       return Object.prototype.toString.call(thing) === "[object Object]";
     }
     function safeJsonParse(thing) {
-      if (isObject2(thing))
+      if (isObject3(thing))
         return thing;
       try {
         return JSON.parse(thing);
@@ -20744,7 +20744,7 @@ var require_sort = __commonJS({
   "node_modules/semver/functions/sort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
-    var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
+    var sort = (list2, loose) => list2.sort((a, b) => compareBuild(a, b, loose));
     module.exports = sort;
   }
 });
@@ -20754,7 +20754,7 @@ var require_rsort = __commonJS({
   "node_modules/semver/functions/rsort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
-    var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
+    var rsort = (list2, loose) => list2.sort((a, b) => compareBuild(b, a, loose));
     module.exports = rsort;
   }
 });
@@ -22478,13 +22478,13 @@ var require_lodash = __commonJS({
       return isObjectLike(value) && isArrayLike(value);
     }
     function isFunction(value) {
-      var tag = isObject2(value) ? objectToString.call(value) : "";
+      var tag = isObject3(value) ? objectToString.call(value) : "";
       return tag == funcTag || tag == genTag;
     }
     function isLength(value) {
       return typeof value == "number" && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
     }
-    function isObject2(value) {
+    function isObject3(value) {
       var type = typeof value;
       return !!value && (type == "object" || type == "function");
     }
@@ -22519,9 +22519,9 @@ var require_lodash = __commonJS({
       if (isSymbol(value)) {
         return NAN;
       }
-      if (isObject2(value)) {
+      if (isObject3(value)) {
         var other = typeof value.valueOf == "function" ? value.valueOf() : value;
-        value = isObject2(other) ? other + "" : other;
+        value = isObject3(other) ? other + "" : other;
       }
       if (typeof value != "string") {
         return value === 0 ? value : +value;
@@ -22573,7 +22573,7 @@ var require_lodash3 = __commonJS({
     function isInteger(value) {
       return typeof value == "number" && value == toInteger(value);
     }
-    function isObject2(value) {
+    function isObject3(value) {
       var type = typeof value;
       return !!value && (type == "object" || type == "function");
     }
@@ -22605,9 +22605,9 @@ var require_lodash3 = __commonJS({
       if (isSymbol(value)) {
         return NAN;
       }
-      if (isObject2(value)) {
+      if (isObject3(value)) {
         var other = typeof value.valueOf == "function" ? value.valueOf() : value;
-        value = isObject2(other) ? other + "" : other;
+        value = isObject3(other) ? other + "" : other;
       }
       if (typeof value != "string") {
         return value === 0 ? value : +value;
@@ -22731,7 +22731,7 @@ var require_lodash7 = __commonJS({
     function once(func) {
       return before(2, func);
     }
-    function isObject2(value) {
+    function isObject3(value) {
       var type = typeof value;
       return !!value && (type == "object" || type == "function");
     }
@@ -22763,9 +22763,9 @@ var require_lodash7 = __commonJS({
       if (isSymbol(value)) {
         return NAN;
       }
-      if (isObject2(value)) {
+      if (isObject3(value)) {
         var other = typeof value.valueOf == "function" ? value.valueOf() : value;
-        value = isObject2(other) ? other + "" : other;
+        value = isObject3(other) ? other + "" : other;
       }
       if (typeof value != "string") {
         return value === 0 ? value : +value;
@@ -24280,10 +24280,10 @@ var require_state_cjs2 = __commonJS({
 });
 
 // node_modules/is-docker/index.js
-import fs2 from "node:fs";
+import fs3 from "node:fs";
 function hasDockerEnv() {
   try {
-    fs2.statSync("/.dockerenv");
+    fs3.statSync("/.dockerenv");
     return true;
   } catch {
     return false;
@@ -24291,7 +24291,7 @@ function hasDockerEnv() {
 }
 function hasDockerCGroup() {
   try {
-    return fs2.readFileSync("/proc/self/cgroup", "utf8").includes("docker");
+    return fs3.readFileSync("/proc/self/cgroup", "utf8").includes("docker");
   } catch {
     return false;
   }
@@ -24309,7 +24309,7 @@ var init_is_docker = __esm({
 });
 
 // node_modules/is-inside-container/index.js
-import fs3 from "node:fs";
+import fs4 from "node:fs";
 function isInsideContainer() {
   if (cachedResult === void 0) {
     cachedResult = hasContainerEnv() || isDocker();
@@ -24322,7 +24322,7 @@ var init_is_inside_container = __esm({
     init_is_docker();
     hasContainerEnv = () => {
       try {
-        fs3.statSync("/run/.containerenv");
+        fs4.statSync("/run/.containerenv");
         return true;
       } catch {
         return false;
@@ -24333,8 +24333,8 @@ var init_is_inside_container = __esm({
 
 // node_modules/is-wsl/index.js
 import process5 from "node:process";
-import os4 from "node:os";
-import fs4 from "node:fs";
+import os6 from "node:os";
+import fs5 from "node:fs";
 var isWsl, is_wsl_default;
 var init_is_wsl = __esm({
   "node_modules/is-wsl/index.js"() {
@@ -24343,19 +24343,19 @@ var init_is_wsl = __esm({
       if (process5.platform !== "linux") {
         return false;
       }
-      if (os4.release().toLowerCase().includes("microsoft")) {
+      if (os6.release().toLowerCase().includes("microsoft")) {
         if (isInsideContainer()) {
           return false;
         }
         return true;
       }
       try {
-        if (fs4.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft")) {
+        if (fs5.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft")) {
           return !isInsideContainer();
         }
       } catch {
       }
-      if (fs4.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || fs4.existsSync("/run/WSL")) {
+      if (fs5.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || fs5.existsSync("/run/WSL")) {
         return !isInsideContainer();
       }
       return false;
@@ -24366,7 +24366,7 @@ var init_is_wsl = __esm({
 
 // node_modules/wsl-utils/index.js
 import process6 from "node:process";
-import fs5, { constants as fsConstants } from "node:fs/promises";
+import fs6, { constants as fsConstants } from "node:fs/promises";
 var wslDrivesMountPoint, powerShellPathFromWsl, powerShellPath;
 var init_wsl_utils = __esm({
   "node_modules/wsl-utils/index.js"() {
@@ -24382,14 +24382,14 @@ var init_wsl_utils = __esm({
         const configFilePath = "/etc/wsl.conf";
         let isConfigFileExists = false;
         try {
-          await fs5.access(configFilePath, fsConstants.F_OK);
+          await fs6.access(configFilePath, fsConstants.F_OK);
           isConfigFileExists = true;
         } catch {
         }
         if (!isConfigFileExists) {
           return defaultMountPoint;
         }
-        const configContent = await fs5.readFile(configFilePath, { encoding: "utf8" });
+        const configContent = await fs6.readFile(configFilePath, { encoding: "utf8" });
         const configMountPoint = /(?<!#.*)root\s*=\s*(?<mountPoint>.*)/g.exec(configContent);
         if (!configMountPoint) {
           return defaultMountPoint;
@@ -24596,7 +24596,7 @@ import path2 from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify as promisify5 } from "node:util";
 import childProcess from "node:child_process";
-import fs6, { constants as fsConstants2 } from "node:fs/promises";
+import fs7, { constants as fsConstants2 } from "node:fs/promises";
 async function getWindowsDefaultBrowserFromWsl() {
   const powershellPath = await powerShellPath();
   const rawCommand = String.raw`(Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice").ProgId`;
@@ -24775,7 +24775,7 @@ var init_open = __esm({
           const isBundled = !__dirname || __dirname === "/";
           let exeLocalXdgOpen = false;
           try {
-            await fs6.access(localXdgOpenPath, fsConstants2.X_OK);
+            await fs7.access(localXdgOpenPath, fsConstants2.X_OK);
             exeLocalXdgOpen = true;
           } catch {
           }
@@ -24909,6 +24909,9 @@ function issueCommand(command, properties, message) {
   const cmd = new Command(command, properties, message);
   process.stdout.write(cmd.toString() + os.EOL);
 }
+function issue(name3, message = "") {
+  issueCommand(name3, {}, message);
+}
 var CMD_STRING = "::";
 var Command = class {
   constructor(command, properties, message) {
@@ -24948,6 +24951,37 @@ function escapeData(s) {
 function escapeProperty(s) {
   return toCommandValue(s).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A").replace(/:/g, "%3A").replace(/,/g, "%2C");
 }
+
+// node_modules/@actions/core/lib/file-command.js
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as os2 from "os";
+function issueFileCommand(command, message) {
+  const filePath = process.env[`GITHUB_${command}`];
+  if (!filePath) {
+    throw new Error(`Unable to find environment variable for file command ${command}`);
+  }
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Missing file at path: ${filePath}`);
+  }
+  fs.appendFileSync(filePath, `${toCommandValue(message)}${os2.EOL}`, {
+    encoding: "utf8"
+  });
+}
+function prepareKeyValueMessage(key, value) {
+  const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
+  const convertedValue = toCommandValue(value);
+  if (key.includes(delimiter)) {
+    throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+  }
+  if (convertedValue.includes(delimiter)) {
+    throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+  }
+  return `${key}<<${delimiter}${os2.EOL}${convertedValue}${os2.EOL}${delimiter}`;
+}
+
+// node_modules/@actions/core/lib/core.js
+import * as os4 from "os";
 
 // node_modules/@actions/http-client/lib/index.js
 import * as http from "http";
@@ -25276,12 +25310,12 @@ var HttpClient = class {
         throw new Error("Client has already been disposed.");
       }
       const parsedUrl = new URL(requestUrl);
-      let info = this._prepareRequest(verb, parsedUrl, headers);
+      let info2 = this._prepareRequest(verb, parsedUrl, headers);
       const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
       let numTries = 0;
       let response;
       do {
-        response = yield this.requestRaw(info, data);
+        response = yield this.requestRaw(info2, data);
         if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
           let authenticationHandler;
           for (const handler of this.handlers) {
@@ -25291,7 +25325,7 @@ var HttpClient = class {
             }
           }
           if (authenticationHandler) {
-            return authenticationHandler.handleAuthentication(this, info, data);
+            return authenticationHandler.handleAuthentication(this, info2, data);
           } else {
             return response;
           }
@@ -25314,8 +25348,8 @@ var HttpClient = class {
               }
             }
           }
-          info = this._prepareRequest(verb, parsedRedirectUrl, headers);
-          response = yield this.requestRaw(info, data);
+          info2 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+          response = yield this.requestRaw(info2, data);
           redirectsRemaining--;
         }
         if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -25344,7 +25378,7 @@ var HttpClient = class {
    * @param info
    * @param data
    */
-  requestRaw(info, data) {
+  requestRaw(info2, data) {
     return __awaiter(this, void 0, void 0, function* () {
       return new Promise((resolve, reject) => {
         function callbackForResult(err, res) {
@@ -25356,7 +25390,7 @@ var HttpClient = class {
             resolve(res);
           }
         }
-        this.requestRawWithCallback(info, data, callbackForResult);
+        this.requestRawWithCallback(info2, data, callbackForResult);
       });
     });
   }
@@ -25366,12 +25400,12 @@ var HttpClient = class {
    * @param data
    * @param onResult
    */
-  requestRawWithCallback(info, data, onResult) {
+  requestRawWithCallback(info2, data, onResult) {
     if (typeof data === "string") {
-      if (!info.options.headers) {
-        info.options.headers = {};
+      if (!info2.options.headers) {
+        info2.options.headers = {};
       }
-      info.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+      info2.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
     }
     let callbackCalled = false;
     function handleResult(err, res) {
@@ -25380,7 +25414,7 @@ var HttpClient = class {
         onResult(err, res);
       }
     }
-    const req = info.httpModule.request(info.options, (msg) => {
+    const req = info2.httpModule.request(info2.options, (msg) => {
       const res = new HttpClientResponse(msg);
       handleResult(void 0, res);
     });
@@ -25392,7 +25426,7 @@ var HttpClient = class {
       if (socket) {
         socket.end();
       }
-      handleResult(new Error(`Request timeout: ${info.options.path}`));
+      handleResult(new Error(`Request timeout: ${info2.options.path}`));
     });
     req.on("error", function(err) {
       handleResult(err);
@@ -25428,27 +25462,27 @@ var HttpClient = class {
     return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
   }
   _prepareRequest(method, requestUrl, headers) {
-    const info = {};
-    info.parsedUrl = requestUrl;
-    const usingSsl = info.parsedUrl.protocol === "https:";
-    info.httpModule = usingSsl ? https : http;
+    const info2 = {};
+    info2.parsedUrl = requestUrl;
+    const usingSsl = info2.parsedUrl.protocol === "https:";
+    info2.httpModule = usingSsl ? https : http;
     const defaultPort = usingSsl ? 443 : 80;
-    info.options = {};
-    info.options.host = info.parsedUrl.hostname;
-    info.options.port = info.parsedUrl.port ? parseInt(info.parsedUrl.port) : defaultPort;
-    info.options.path = (info.parsedUrl.pathname || "") + (info.parsedUrl.search || "");
-    info.options.method = method;
-    info.options.headers = this._mergeHeaders(headers);
+    info2.options = {};
+    info2.options.host = info2.parsedUrl.hostname;
+    info2.options.port = info2.parsedUrl.port ? parseInt(info2.parsedUrl.port) : defaultPort;
+    info2.options.path = (info2.parsedUrl.pathname || "") + (info2.parsedUrl.search || "");
+    info2.options.method = method;
+    info2.options.headers = this._mergeHeaders(headers);
     if (this.userAgent != null) {
-      info.options.headers["user-agent"] = this.userAgent;
+      info2.options.headers["user-agent"] = this.userAgent;
     }
-    info.options.agent = this._getAgent(info.parsedUrl);
+    info2.options.agent = this._getAgent(info2.parsedUrl);
     if (this.handlers) {
       for (const handler of this.handlers) {
-        handler.prepareRequest(info.options);
+        handler.prepareRequest(info2.options);
       }
     }
-    return info;
+    return info2;
   }
   _mergeHeaders(headers) {
     if (this.requestOptions && this.requestOptions.headers) {
@@ -25796,7 +25830,7 @@ var OidcClient = class _OidcClient {
 };
 
 // node_modules/@actions/core/lib/summary.js
-import { EOL as EOL2 } from "os";
+import { EOL as EOL3 } from "os";
 import { constants, promises } from "fs";
 var __awaiter4 = function(thisArg, _arguments, P, generator) {
   function adopt(value) {
@@ -25940,7 +25974,7 @@ var Summary = class {
    * @returns {Summary} summary instance
    */
   addEOL() {
-    return this.addRaw(EOL2);
+    return this.addRaw(EOL3);
   }
   /**
    * Adds an HTML codeblock to the summary buffer
@@ -25965,8 +25999,8 @@ var Summary = class {
    */
   addList(items, ordered = false) {
     const tag = ordered ? "ol" : "ul";
-    const listItems = items.map((item) => this.wrap("li", item)).join("");
-    const element = this.wrap(tag, listItems);
+    const listItems2 = items.map((item) => this.wrap("li", item)).join("");
+    const element = this.wrap(tag, listItems2);
     return this.addRaw(element).addEOL();
   }
   /**
@@ -25978,11 +26012,11 @@ var Summary = class {
    */
   addTable(rows) {
     const tableBody = rows.map((row) => {
-      const cells = row.map((cell) => {
-        if (typeof cell === "string") {
-          return this.wrap("td", cell);
+      const cells = row.map((cell2) => {
+        if (typeof cell2 === "string") {
+          return this.wrap("td", cell2);
         }
-        const { header, data, colspan, rowspan } = cell;
+        const { header, data, colspan, rowspan } = cell2;
         const tag = header ? "th" : "td";
         const attrs = Object.assign(Object.assign({}, colspan && { colspan }), rowspan && { rowspan });
         return this.wrap(tag, data, attrs);
@@ -26080,20 +26114,20 @@ var Summary = class {
 var _summary = new Summary();
 
 // node_modules/@actions/core/lib/platform.js
-import os2 from "os";
+import os3 from "os";
 
 // node_modules/@actions/io/lib/io-util.js
-import * as fs from "fs";
-var { chmod, copyFile, lstat, mkdir, open, readdir, rename, rm, rmdir, stat, symlink, unlink } = fs.promises;
+import * as fs2 from "fs";
+var { chmod, copyFile, lstat, mkdir, open, readdir, rename, rm, rmdir, stat, symlink, unlink } = fs2.promises;
 var IS_WINDOWS = process.platform === "win32";
-var READONLY = fs.constants.O_RDONLY;
+var READONLY = fs2.constants.O_RDONLY;
 
 // node_modules/@actions/exec/lib/toolrunner.js
 var IS_WINDOWS2 = process.platform === "win32";
 
 // node_modules/@actions/core/lib/platform.js
-var platform = os2.platform();
-var arch = os2.arch();
+var platform = os3.platform();
+var arch = os3.arch();
 
 // node_modules/@actions/core/lib/core.js
 var __awaiter5 = function(thisArg, _arguments, P, generator) {
@@ -26152,6 +26186,14 @@ function getBooleanInput(name3, options) {
   throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name3}
 Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 }
+function setOutput(name3, value) {
+  const filePath = process.env["GITHUB_OUTPUT"] || "";
+  if (filePath) {
+    return issueFileCommand("OUTPUT", prepareKeyValueMessage(name3, value));
+  }
+  process.stdout.write(os4.EOL);
+  issueCommand("set-output", { name: name3 }, toCommandValue(value));
+}
 function setFailed(message) {
   process.exitCode = ExitCode.Failure;
   error(message);
@@ -26161,6 +26203,18 @@ function debug(message) {
 }
 function error(message, properties = {}) {
   issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
+function warning(message, properties = {}) {
+  issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
+function info(message) {
+  process.stdout.write(message + os4.EOL);
+}
+function startGroup(name3) {
+  issue("group", name3);
+}
+function endGroup() {
+  issue("endgroup");
 }
 function getIDToken(aud) {
   return __awaiter5(this, void 0, void 0, function* () {
@@ -26177,6 +26231,19 @@ function guardAgainstSilentExit(proc, hasSettled, setFailed2) {
       proc.exitCode = 1;
     }
   });
+}
+async function runGuarded(proc, work, setFailed2) {
+  let settled = false;
+  guardAgainstSilentExit(proc, () => settled, setFailed2);
+  try {
+    await work();
+    settled = true;
+    proc.exit(0);
+  } catch (err) {
+    settled = true;
+    setFailed2(err instanceof Error ? err.message : String(err));
+    proc.exit(1);
+  }
 }
 
 // src/cloud.ts
@@ -26205,8 +26272,17 @@ function findCloud(value) {
   const wanted = value.trim().toLowerCase();
   return Object.values(CLOUDS).find((cloud) => cloud.name.toLowerCase() === wanted);
 }
+function appendDefaultScope(url) {
+  return url.replace(/\/+$/, "") + "/.default";
+}
 function dataPlaneUrl(cloud, workspace) {
   return `https://${workspace}.${cloud.dataPlaneSuffix}`;
+}
+function dataPlaneScope(cloud) {
+  return appendDefaultScope(`https://${cloud.dataPlaneSuffix}`);
+}
+function armScope(cloud) {
+  return appendDefaultScope(cloud.arm);
 }
 
 // src/mask.ts
@@ -26346,6 +26422,677 @@ function readInputs(source = coreInputSource) {
     deployManagedPrivateEndpoints: bool(source, "deploy-managed-private-endpoints"),
     dryRun: bool(source, "dry-run")
   };
+}
+
+// src/http.ts
+var userAgent = "synapse-deploy";
+var DATA_PLANE_SOCKET_TIMEOUT_MS = 3e5;
+var MAX_ATTEMPTS = 5;
+var BASE_RETRY_WAIT_MS = 2e3;
+var MAX_RETRY_WAIT_MS = 6e4;
+var MAX_SERVICE_MESSAGE_CHARS = 2e3;
+var HTTP_DATE = /^(?:[A-Za-z]{3,9}, \d.*|[A-Za-z]{3} [A-Za-z]{3} .*)\d{2}:\d{2}:\d{2}/;
+var PERMANENT_ERROR_CODE = /^(?:CERT_|ERR_TLS_|ERR_SSL_|DEPTH_ZERO_SELF_SIGNED_CERT|SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_(?:GET_ISSUER_CERT|VERIFY_LEAF_SIGNATURE)|ENOTFOUND$)/;
+var RETRYABLE_STATUSES = /* @__PURE__ */ new Set([429, 500, 502, 503, 504]);
+function createHttpClient(socketTimeout) {
+  return new HttpClient(userAgent, [], { socketTimeout, allowRedirects: false });
+}
+function isRedirectStatus(status) {
+  return status !== void 0 && status >= 300 && status < 400;
+}
+function redirectError(location) {
+  return new Error(
+    `Unexpected redirect to ${location ?? "an unknown location"}; redirects are disabled because every request carries a bearer token.`
+  );
+}
+function readBody(res, idleTimeoutMs = DATA_PLANE_SOCKET_TIMEOUT_MS) {
+  const message = res.message;
+  const host = message.req?.host ?? "the server";
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let ended = false;
+    const fail = (reason) => {
+      if (!ended) {
+        ended = true;
+        reject(new Error(`${reason}; re-run the job.`));
+      }
+    };
+    message.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    message.on("end", () => {
+      if (!ended) {
+        ended = true;
+        resolve(Buffer.concat(chunks).toString());
+      }
+    });
+    message.on("error", (err) => {
+      fail(`Reading the response from ${host} failed: ${err.message}`);
+    });
+    message.on("aborted", () => {
+      fail(`Connection closed before the response from ${host} was complete`);
+    });
+    message.on("close", () => {
+      if (!message.complete) {
+        fail(`Connection closed before the response from ${host} was complete`);
+      }
+    });
+    message.setTimeout(idleTimeoutMs, () => {
+      const reason = `No data from ${host} for ${Math.round(idleTimeoutMs / 1e3)} s`;
+      fail(reason);
+      message.destroy(new Error(reason));
+    });
+  });
+}
+function permissionHint(status, role) {
+  return status === 401 || status === 403 ? ` The identity is likely missing ${role}; grant it and re-run the job.` : "";
+}
+var GENERIC_ROLE = "a role for this call (Synapse RBAC on the workspace for the development endpoint, Azure RBAC on the workspace for Azure Resource Manager)";
+var HttpError = class extends Error {
+  status;
+  serviceMessage;
+  constructor(message, status, serviceMessage, cause) {
+    super(message, { cause });
+    this.name = "HttpError";
+    this.status = status;
+    this.serviceMessage = serviceMessage;
+  }
+};
+function pathOf(url) {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+}
+function serviceMessageOf(text) {
+  let message = text;
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed === "object" && parsed !== null) {
+      const record = parsed;
+      const inner = typeof record.error === "object" && record.error !== null ? record.error.message : void 0;
+      if (typeof inner === "string") {
+        message = inner;
+      } else if (typeof record.message === "string") {
+        message = record.message;
+      }
+    }
+  } catch {
+  }
+  return message.length > MAX_SERVICE_MESSAGE_CHARS ? message.slice(0, MAX_SERVICE_MESSAGE_CHARS) + "..." : message;
+}
+function responseError(res) {
+  const serviceMessage = serviceMessageOf(res.text);
+  const attempts = res.attempts > 1 ? ` after ${res.attempts} attempts` : "";
+  return new HttpError(
+    `${res.method} ${pathOf(res.url)} failed with status ${res.status}${attempts}` + (serviceMessage ? `: ${serviceMessage}` : "") + "." + permissionHint(res.status, GENERIC_ROLE),
+    res.status,
+    serviceMessage
+  );
+}
+function ensureSuccess(res) {
+  if (res.status < 200 || res.status >= 300) {
+    throw responseError(res);
+  }
+  return res;
+}
+function errorCode(err) {
+  if (typeof err !== "object" || err === null) {
+    return void 0;
+  }
+  const record = err;
+  return typeof record.code === "string" ? record.code : errorCode(record.cause);
+}
+function isPermanentConnectionError(err) {
+  const code = errorCode(err);
+  return code !== void 0 && PERMANENT_ERROR_CODE.test(code);
+}
+function headerValue(headers, name3) {
+  const raw = headers[name3];
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+function retryWaitMs(headers, attempt, nowMs) {
+  const header = headerValue(headers, "retry-after");
+  let wait = BASE_RETRY_WAIT_MS * 2 ** (attempt - 1);
+  if (header !== void 0 && header.trim() !== "") {
+    const value = header.trim();
+    if (/^\d+$/.test(value)) {
+      wait = Number(value) * 1e3;
+    } else if (HTTP_DATE.test(value)) {
+      const date = Date.parse(/GMT$/.test(value) ? value : `${value} GMT`);
+      if (!Number.isNaN(date)) {
+        wait = Math.max(0, date - nowMs);
+      }
+    }
+  }
+  return Math.min(wait, MAX_RETRY_WAIT_MS);
+}
+function defaultSleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function createHttp(options) {
+  const client = options.client ?? createHttpClient(DATA_PLANE_SOCKET_TIMEOUT_MS);
+  const sleep = options.sleep ?? defaultSleep;
+  const now = options.now ?? Date.now;
+  const maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
+  const bodyIdleTimeoutMs = options.bodyIdleTimeoutMs ?? DATA_PLANE_SOCKET_TIMEOUT_MS;
+  return {
+    async request(method, url, scope, body) {
+      const payload = body === void 0 ? null : JSON.stringify(body);
+      for (let attempt = 1; ; attempt++) {
+        const token = await options.tokens.getToken(scope);
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json"
+        };
+        if (payload !== null) {
+          headers["Content-Type"] = "application/json";
+        }
+        const started = now();
+        let status;
+        let responseHeaders;
+        let text;
+        try {
+          const res = await client.request(method, url, payload, headers);
+          status = res.message.statusCode ?? 0;
+          responseHeaders = res.message.headers;
+          text = await readBody(res, bodyIdleTimeoutMs);
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : String(err);
+          debug(`${method} ${pathOf(url)} failed: ${reason} (attempt ${attempt})`);
+          if (isPermanentConnectionError(err)) {
+            throw new HttpError(
+              `${method} ${pathOf(url)} failed: ${reason}. Retrying cannot help; check the host name, the TLS certificate and any proxy in between.`,
+              void 0,
+              reason,
+              err
+            );
+          }
+          if (attempt >= maxAttempts) {
+            throw new HttpError(
+              `${method} ${pathOf(url)} failed after ${attempt} attempts: ${reason}`,
+              void 0,
+              reason,
+              err
+            );
+          }
+          await sleep(retryWaitMs({}, attempt, now()));
+          continue;
+        }
+        debug(
+          `${method} ${pathOf(url)} -> ${status} (attempt ${attempt}, ${now() - started} ms)`
+        );
+        if (isRedirectStatus(status)) {
+          throw redirectError(headerValue(responseHeaders, "location"));
+        }
+        const response = {
+          status,
+          headers: responseHeaders,
+          text,
+          json: () => {
+            try {
+              return JSON.parse(text);
+            } catch {
+              throw new Error(
+                `${method} ${pathOf(url)} answered with status ${status} and a body that is not JSON.`
+              );
+            }
+          },
+          method,
+          url,
+          attempts: attempt
+        };
+        if (!RETRYABLE_STATUSES.has(status)) {
+          return response;
+        }
+        if (attempt >= maxAttempts) {
+          throw responseError(response);
+        }
+        await sleep(retryWaitMs(responseHeaders, attempt, now()));
+      }
+    }
+  };
+}
+
+// src/kinds.ts
+var DEFAULT_API_VERSION = "2019-06-01-preview";
+var LAKE_DATABASE_API_VERSION = "2021-04-01";
+var TEMPLATE_TYPE_PREFIX = "microsoft.synapse/workspaces/";
+function dataKind(id, collection, referenceType) {
+  return {
+    id,
+    templateTail: id.toLowerCase(),
+    collection,
+    plane: "data",
+    delete: "collection",
+    apiVersion: DEFAULT_API_VERSION,
+    ...referenceType === void 0 ? {} : { referenceType }
+  };
+}
+function skipKind(id) {
+  return {
+    id,
+    templateTail: id.toLowerCase(),
+    collection: id,
+    plane: "skip",
+    delete: "never",
+    apiVersion: DEFAULT_API_VERSION
+  };
+}
+var KINDS = [
+  dataKind("notebooks", "notebooks", "NotebookReference"),
+  dataKind("sparkJobDefinitions", "sparkJobDefinitions", "SparkJobDefinitionReference"),
+  dataKind("sqlScripts", "sqlScripts", "SqlScriptReference"),
+  dataKind("kqlScripts", "kqlScripts"),
+  dataKind("sparkConfigurations", "sparkConfigurations"),
+  dataKind("datasets", "datasets", "DatasetReference"),
+  dataKind("dataflows", "dataflows", "DataFlowReference"),
+  dataKind("pipelines", "pipelines", "PipelineReference"),
+  dataKind("triggers", "triggers"),
+  dataKind("linkedServices", "linkedServices", "LinkedServiceReference"),
+  dataKind("credentials", "credentials", "CredentialReference"),
+  {
+    id: "databases",
+    templateTail: "databases",
+    collection: "databases",
+    plane: "lakedb",
+    delete: "lakedb",
+    apiVersion: LAKE_DATABASE_API_VERSION
+  },
+  {
+    id: "managedPrivateEndpoints",
+    templateTail: "managedvirtualnetworks/managedprivateendpoints",
+    collection: "managedVirtualNetworks/default/managedPrivateEndpoints",
+    plane: "endpoint",
+    delete: "endpoint",
+    apiVersion: DEFAULT_API_VERSION
+  },
+  {
+    id: "integrationRuntimes",
+    templateTail: "integrationruntimes",
+    collection: "integrationRuntimes",
+    plane: "arm",
+    delete: "never",
+    apiVersion: DEFAULT_API_VERSION
+  },
+  skipKind("bigDataPools"),
+  skipKind("sqlPools"),
+  skipKind("managedVirtualNetworks")
+];
+var byTail = new Map(KINDS.map((kind2) => [kind2.templateTail, kind2]));
+var byCollection = new Map(KINDS.map((kind2) => [kind2.collection.toLowerCase(), kind2]));
+var byReferenceType = new Map(
+  KINDS.flatMap((kind2) => kind2.referenceType === void 0 ? [] : [[kind2.referenceType, kind2]])
+);
+function kindForTemplateType(type) {
+  const lower = type.toLowerCase();
+  if (!lower.startsWith(TEMPLATE_TYPE_PREFIX)) {
+    return void 0;
+  }
+  return byTail.get(lower.slice(TEMPLATE_TYPE_PREFIX.length));
+}
+function kindForCollection(collection) {
+  return byCollection.get(collection.toLowerCase());
+}
+function kindForReferenceType(referenceType) {
+  return byReferenceType.get(referenceType);
+}
+function unsupportedTypeMessage(type) {
+  return `unsupported type ${type}; the deployer handles ` + KINDS.map((kind2) => kind2.templateTail).join(", ") + ".";
+}
+function artifactPath(kind2, name3) {
+  return `/${kind2.collection}/${encodeURIComponent(name3)}?api-version=${kind2.apiVersion}`;
+}
+
+// src/lro.ts
+var OPERATION_DEADLINE_MS = 20 * 6e4;
+var BASE_POLL_WAIT_MS = 2e3;
+var MAX_POLL_WAIT_MS = 3e4;
+var MIN_POLL_WAIT_MS = 1e3;
+function asRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function tolerantBody(res) {
+  if (res.text.trim() === "") {
+    return void 0;
+  }
+  try {
+    return asRecord(JSON.parse(res.text));
+  } catch {
+    return void 0;
+  }
+}
+function strictBody(res) {
+  return res.text.trim() === "" ? void 0 : asRecord(res.json());
+}
+function stringField(record, key) {
+  const value = record?.[key];
+  return typeof value === "string" ? value : void 0;
+}
+function errorMessageOf(body) {
+  const error2 = asRecord(body?.error);
+  return stringField(error2, "message") ?? stringField(body, "message") ?? "no reason given";
+}
+function sameOriginUrl(requestUrl, target) {
+  const base = new URL(requestUrl);
+  let resolved;
+  try {
+    resolved = new URL(target, base);
+  } catch {
+    throw new Error(
+      `Refusing to follow "${target}" from ${base.host}: it is not a valid URL. Re-run the job; if it persists, report the response.`
+    );
+  }
+  if (resolved.origin !== base.origin) {
+    throw new Error(
+      `Refusing to send the token to ${resolved.host}: the service pointed ${base.host} at another host. Check for a proxy or a mis-set endpoint.`
+    );
+  }
+  return resolved.toString();
+}
+function pollWaitMs(headers, poll2, nowMs) {
+  const retryAfter = headerValue(headers, "retry-after");
+  if (retryAfter !== void 0 && retryAfter.trim() !== "") {
+    return Math.max(MIN_POLL_WAIT_MS, retryWaitMs(headers, poll2, nowMs));
+  }
+  return Math.min(BASE_POLL_WAIT_MS * 2 ** (poll2 - 1), MAX_POLL_WAIT_MS);
+}
+async function poll(ctx, target, url, deadlineAt, interpret, initialHeaders = {}) {
+  let last;
+  const initialHint = headerValue(initialHeaders, "retry-after");
+  if (initialHint !== void 0 && initialHint.trim() !== "") {
+    await ctx.sleep(pollWaitMs(initialHeaders, 1, ctx.now()));
+  }
+  for (let n = 1; ; n++) {
+    const res = await ctx.http.request("GET", url, target.scope);
+    const verdict = interpret(res);
+    if (verdict === true) {
+      return;
+    }
+    last = verdict;
+    if (ctx.now() >= deadlineAt) {
+      break;
+    }
+    await ctx.sleep(pollWaitMs(res.headers, n, ctx.now()));
+    if (ctx.now() >= deadlineAt) {
+      break;
+    }
+  }
+  const minutes = Math.round((ctx.deadlineMs ?? OPERATION_DEADLINE_MS) / 6e4);
+  throw new Error(
+    `${target.label} did not finish within ${minutes} minutes (last status: ${last ?? "none"}). Check the operation in Synapse Studio and re-run the job.`
+  );
+}
+function deadlineFor(ctx) {
+  return ctx.now() + (ctx.deadlineMs ?? OPERATION_DEADLINE_MS);
+}
+var FAILED_STATES = /* @__PURE__ */ new Set(["failed", "canceled", "cancelled", "rejected", "deleted"]);
+function isFailedState(lower) {
+  return lower !== void 0 && FAILED_STATES.has(lower);
+}
+function operationFailed(target, what, reason) {
+  return new HttpError(`${target.label} ${what}: ${reason}`, void 0, reason);
+}
+function unexpected(res, target) {
+  if (res.status >= 200 && res.status < 300) {
+    return new Error(
+      `${target.label}: ${res.method} ${pathOf(res.url)} answered ${res.status}, which is not a valid answer here: ${serviceMessageOf(res.text) || "empty body"}.`
+    );
+  }
+  const error2 = responseError(res);
+  return new HttpError(`${target.label}: ${error2.message}`, error2.status, error2.serviceMessage);
+}
+function interpretDeployPoll(target) {
+  return (res) => {
+    if (res.status === 204) {
+      info(`${target.label}: the operation answered 204; treating it as done`);
+      return true;
+    }
+    if (res.status === 404) {
+      throw new Error(
+        `${target.label}: the operation disappeared (404 from ${pathOf(res.url)}). Re-run the job; if it persists, check the workspace in Synapse Studio.`
+      );
+    }
+    if (res.status === 429) {
+      return "HTTP 429";
+    }
+    if (res.status === 202) {
+      return "HTTP 202";
+    }
+    if (res.status !== 200 && res.status !== 201) {
+      throw unexpected(res, target);
+    }
+    const body = strictBody(res);
+    if (body === void 0) {
+      return `HTTP ${res.status} with an empty body`;
+    }
+    const status = stringField(body, "status");
+    const lower = status?.toLowerCase();
+    if (isFailedState(lower)) {
+      throw operationFailed(target, lower, errorMessageOf(body));
+    }
+    if (lower === "inprogress" || lower === "accepted" || lower === "running") {
+      return `status ${String(status)}`;
+    }
+    const name3 = stringField(body, "name");
+    if (lower === "succeeded" || name3 !== void 0 && name3.toLowerCase() === target.name.toLowerCase()) {
+      return true;
+    }
+    if (target.lenient === true && status === void 0 && name3 === void 0) {
+      return true;
+    }
+    throw new Error(
+      `${target.label}: the operation answered with ${status === void 0 ? "no status" : `status ${status}`} and not the artifact; check it in Synapse Studio and re-run the job.`
+    );
+  };
+}
+async function followOperation(ctx, put, target, operationId, deadlineAt) {
+  const location = headerValue(put.headers, "location");
+  if (location === void 0 && target.lenient === true) {
+    throw new Error(
+      `${target.label}: the service answered with an operation ID but no Location, so there is nowhere to poll. Re-run the job; if it persists, check the database in Synapse Studio.`
+    );
+  }
+  const url = location !== void 0 ? sameOriginUrl(put.url, location) : new URL(
+    `${target.operationBase ?? ""}/operationResults/${encodeURIComponent(operationId ?? "")}?api-version=${target.operationApiVersion ?? DEFAULT_API_VERSION}`,
+    put.url
+  ).toString();
+  await poll(ctx, target, url, deadlineAt, interpretDeployPoll(target), put.headers);
+}
+async function awaitDataPlaneDeploy(ctx, put, target) {
+  const deadlineAt = deadlineFor(ctx);
+  await startedOperation(ctx, put, target, deadlineAt);
+}
+async function startedOperation(ctx, put, target, deadlineAt) {
+  ensureSuccess(put);
+  const operationId = stringField(tolerantBody(put), "operationId");
+  const hasLocation = headerValue(put.headers, "location") !== void 0;
+  if (operationId !== void 0 || target.lenient === true && put.status === 202 && hasLocation) {
+    await followOperation(ctx, put, target, operationId, deadlineAt);
+    return true;
+  }
+  if (put.status === 200 || put.status === 201 || target.lenient === true && put.status === 204) {
+    return false;
+  }
+  throw new Error(
+    `${target.label}: PUT answered ${put.status} without an operation ID${put.status === 202 ? " or Location" : ""}, so there is nothing to wait for: ${put.text.trim() || "empty body"}. Re-run the job; if it persists, check the artifact in Synapse Studio.`
+  );
+}
+async function awaitDelete(ctx, del, target) {
+  if (del.status === 404) {
+    info(`${target.label}: already deleted`);
+    return;
+  }
+  ensureSuccess(del);
+  const location = headerValue(del.headers, "location");
+  if (location === void 0) {
+    return;
+  }
+  await poll(
+    ctx,
+    target,
+    sameOriginUrl(del.url, location),
+    deadlineFor(ctx),
+    (res) => {
+      if (res.status === 404) {
+        info(`${target.label}: the delete operation is gone (404); treating it as done`);
+        return true;
+      }
+      if (res.status === 429 || res.status === 202) {
+        return `HTTP ${res.status}`;
+      }
+      if (res.status === 204) {
+        return true;
+      }
+      if (res.status !== 200 && res.status !== 201) {
+        throw unexpected(res, target);
+      }
+      const body = strictBody(res);
+      const status = stringField(body, "status");
+      const lower = status?.toLowerCase();
+      if (lower === "succeeded" || lower === "deleted" || status === void 0) {
+        return true;
+      }
+      if (isFailedState(lower)) {
+        throw operationFailed(target, `delete ${lower}`, errorMessageOf(body));
+      }
+      if (lower === "inprogress" || lower === "accepted" || lower === "running") {
+        return `status ${String(status)}`;
+      }
+      throw new Error(
+        `${target.label}: the delete operation answered with status ${status}, which is not known; check the artifact in Synapse Studio and re-run the job.`
+      );
+    },
+    del.headers
+  );
+}
+function provisioningInterpreter(target) {
+  return (res) => {
+    if (res.status === 429) {
+      return "HTTP 429";
+    }
+    if (res.status < 200 || res.status >= 300) {
+      throw unexpected(res, target);
+    }
+    const body = strictBody(res);
+    const properties = asRecord(body?.properties);
+    const state3 = stringField(properties, "provisioningState");
+    const lower = state3?.toLowerCase();
+    if (lower === "succeeded") {
+      return true;
+    }
+    if (isFailedState(lower)) {
+      const error2 = asRecord(properties?.error);
+      throw operationFailed(
+        target,
+        `provisioning ${lower}`,
+        stringField(error2, "message") ?? errorMessageOf(body)
+      );
+    }
+    return state3 === void 0 ? "no provisioningState yet" : `provisioningState ${state3}`;
+  };
+}
+async function awaitEndpointDeploy(ctx, put, target) {
+  const deadlineAt = deadlineFor(ctx);
+  ensureSuccess(put);
+  if (stringField(tolerantBody(put), "operationId") !== void 0) {
+    await startedOperation(ctx, put, target, deadlineAt);
+  }
+  await poll(ctx, target, put.url, deadlineAt, provisioningInterpreter(target), put.headers);
+}
+function interpretAsyncOperation(target) {
+  return (res) => {
+    if (res.status === 429 || res.status === 202) {
+      return `HTTP ${res.status}`;
+    }
+    if (res.status < 200 || res.status >= 300) {
+      throw unexpected(res, target);
+    }
+    const body = strictBody(res);
+    const status = stringField(body, "status");
+    const lower = status?.toLowerCase();
+    if (lower === "succeeded") {
+      return true;
+    }
+    if (isFailedState(lower)) {
+      throw operationFailed(target, lower, errorMessageOf(body));
+    }
+    return status === void 0 ? "no status yet" : `status ${status}`;
+  };
+}
+async function awaitArmDeploy(ctx, put, target) {
+  const deadlineAt = deadlineFor(ctx);
+  ensureSuccess(put);
+  const body = tolerantBody(put);
+  if (stringField(body, "operationId") !== void 0) {
+    await startedOperation(ctx, put, target, deadlineAt);
+    return;
+  }
+  const asyncOperation = headerValue(put.headers, "azure-asyncoperation");
+  if (asyncOperation !== void 0) {
+    await poll(
+      ctx,
+      target,
+      sameOriginUrl(put.url, asyncOperation),
+      deadlineAt,
+      interpretAsyncOperation(target),
+      put.headers
+    );
+    return;
+  }
+  if (put.status === 202) {
+    const location = headerValue(put.headers, "location");
+    if (location === void 0) {
+      throw new Error(
+        `${target.label}: ARM answered 202 with neither Azure-AsyncOperation nor Location, so there is nothing to wait for. Re-run the job; if it persists, check the resource in the portal.`
+      );
+    }
+    await poll(
+      ctx,
+      target,
+      sameOriginUrl(put.url, location),
+      deadlineAt,
+      (res) => {
+        if (res.status === 429 || res.status === 202) {
+          return `HTTP ${res.status}`;
+        }
+        if (res.status === 200 || res.status === 201 || res.status === 204) {
+          return true;
+        }
+        throw unexpected(res, target);
+      },
+      put.headers
+    );
+    return;
+  }
+  if (put.status === 200 || put.status === 201) {
+    const state3 = stringField(asRecord(body?.properties), "provisioningState");
+    if (state3 !== void 0 && state3.toLowerCase() !== "succeeded") {
+      await poll(ctx, target, put.url, deadlineAt, provisioningInterpreter(target));
+    }
+    return;
+  }
+  throw new Error(
+    `${target.label}: ARM answered ${put.status}, which has nothing to wait for or confirm. Re-run the job; if it persists, check the resource in the portal.`
+  );
+}
+
+// src/arm.ts
+var kind = KINDS.find((candidate) => candidate.id === "integrationRuntimes");
+function integrationRuntimeUrl(ctx, name3) {
+  const apiVersion = kind?.apiVersion ?? DEFAULT_API_VERSION;
+  return `${ctx.arm.replace(/\/+$/, "")}/subscriptions/${encodeURIComponent(ctx.subscriptionId)}/resourceGroups/${encodeURIComponent(ctx.resourceGroup)}/providers/Microsoft.Synapse/workspaces/${encodeURIComponent(ctx.workspace)}/integrationRuntimes/${encodeURIComponent(name3)}?api-version=${apiVersion}`;
+}
+async function deployIntegrationRuntime(ctx, name3, body) {
+  const put = await ctx.http.request("PUT", integrationRuntimeUrl(ctx, name3), ctx.scope, body);
+  await awaitArmDeploy(ctx, put, {
+    scope: ctx.scope,
+    label: `integrationRuntimes/${name3}`,
+    name: name3,
+    operationApiVersion: kind?.apiVersion ?? DEFAULT_API_VERSION,
+    operationBase: `/subscriptions/${encodeURIComponent(ctx.subscriptionId)}/resourceGroups/${encodeURIComponent(ctx.resourceGroup)}/providers/Microsoft.Synapse/workspaces/${encodeURIComponent(ctx.workspace)}`
+  });
 }
 
 // node_modules/@azure/identity/dist/esm/constants.js
@@ -26537,11 +27284,11 @@ var AuthenticationRequiredError = class extends Error {
 };
 
 // node_modules/@typespec/ts-http-runtime/dist/esm/logger/log.js
-import { EOL as EOL3 } from "node:os";
+import { EOL as EOL5 } from "node:os";
 import util from "node:util";
 import process2 from "node:process";
 function log(message, ...args) {
-  process2.stderr.write(`${util.format(message, ...args)}${EOL3}`);
+  process2.stderr.write(`${util.format(message, ...args)}${EOL5}`);
 }
 
 // node_modules/@typespec/ts-http-runtime/dist/esm/env.js
@@ -26836,10 +27583,10 @@ function formatError(scope, error2) {
 }
 function credentialLoggerInstance(title, parent, log2 = logger) {
   const fullTitle = parent ? `${parent.fullTitle} ${title}` : title;
-  function info(message) {
+  function info2(message) {
     log2.info(`${fullTitle} =>`, message);
   }
-  function warning(message) {
+  function warning2(message) {
     log2.warning(`${fullTitle} =>`, message);
   }
   function verbose(message) {
@@ -26851,8 +27598,8 @@ function credentialLoggerInstance(title, parent, log2 = logger) {
   return {
     title,
     fullTitle,
-    info,
-    warning,
+    info: info2,
+    warning: warning2,
     verbose,
     error: error2
   };
@@ -28690,9 +29437,9 @@ function nowSeconds() {
 function toSecondsFromDate(date) {
   return date.getTime() / 1e3;
 }
-function toDateFromSeconds(seconds) {
-  if (seconds) {
-    return new Date(Number(seconds) * 1e3);
+function toDateFromSeconds(seconds2) {
+  if (seconds2) {
+    return new Date(Number(seconds2) * 1e3);
   }
   return /* @__PURE__ */ new Date();
 }
@@ -34277,14 +35024,14 @@ function buildManagedIdentityConfiguration({ clientCapabilities, managedIdentity
 }
 
 // node_modules/@azure/msal-node/dist/crypto/GuidGenerator.mjs
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 var GuidGenerator = class {
   /**
    * Generates a random [RFC 4122](https://www.rfc-editor.org/rfc/rfc4122.txt) version 4 UUID. The UUID is generated using a
    * cryptographic pseudorandom number generator.
    */
   generateGuid() {
-    return randomUUID();
+    return randomUUID2();
   }
   /**
    * verifies if a string is  GUID
@@ -34336,19 +35083,19 @@ var EncodingUtils = class _EncodingUtils {
 };
 
 // node_modules/@azure/msal-node/dist/crypto/HashUtils.mjs
-import crypto from "crypto";
+import crypto2 from "crypto";
 var HashUtils = class {
   /**
    * generate 'SHA256' hash
    * @param buffer
    */
   sha256(buffer) {
-    return crypto.createHash(Hash.SHA256).update(buffer).digest();
+    return crypto2.createHash(Hash.SHA256).update(buffer).digest();
   }
 };
 
 // node_modules/@azure/msal-node/dist/crypto/PkceGenerator.mjs
-import crypto2 from "crypto";
+import crypto3 from "crypto";
 var PkceGenerator = class {
   constructor() {
     this.hashUtils = new HashUtils();
@@ -34369,7 +35116,7 @@ var PkceGenerator = class {
     const charArr = [];
     const maxNumber = 256 - 256 % CharSet.CV_CHARSET.length;
     while (charArr.length <= RANDOM_OCTET_SIZE) {
-      const byte = crypto2.randomBytes(1)[0];
+      const byte = crypto3.randomBytes(1)[0];
       if (byte >= maxNumber) {
         continue;
       }
@@ -38359,7 +39106,7 @@ function isError(e) {
 }
 
 // node_modules/@typespec/ts-http-runtime/dist/esm/util/uuidUtils.js
-function randomUUID2() {
+function randomUUID3() {
   return globalThis.crypto.randomUUID();
 }
 
@@ -38932,7 +39679,7 @@ var PipelineRequestImpl = class {
     this.abortSignal = options.abortSignal;
     this.onUploadProgress = options.onUploadProgress;
     this.onDownloadProgress = options.onDownloadProgress;
-    this.requestId = options.requestId || randomUUID2();
+    this.requestId = options.requestId || randomUUID3();
     this.allowInsecureConnection = options.allowInsecureConnection ?? false;
     this.enableBrowserStreams = options.enableBrowserStreams ?? false;
     this.requestOverrides = options.requestOverrides;
@@ -40109,7 +40856,7 @@ async function concat(sources) {
 
 // node_modules/@typespec/ts-http-runtime/dist/esm/policies/multipartPolicy.js
 function generateBoundary() {
-  return `----AzSDKFormBoundary${randomUUID2()}`;
+  return `----AzSDKFormBoundary${randomUUID3()}`;
 }
 function encodeHeaders(headers) {
   let result = "";
@@ -40226,14 +40973,14 @@ function redirectPolicy2(options = {}) {
 }
 
 // node_modules/@azure/core-rest-pipeline/dist/esm/util/userAgentPlatform.js
-import os3 from "node:os";
+import os5 from "node:os";
 import process4 from "node:process";
 function getHeaderName2() {
   return "User-Agent";
 }
 async function setPlatformSpecificData2(map) {
   if (process4 && process4.versions) {
-    const osInfo = `${os3.type()} ${os3.release()}; ${os3.arch()}`;
+    const osInfo = `${os5.type()} ${os5.release()}; ${os5.arch()}`;
     if (process4.versions.bun) {
       map.set("Bun", `${process4.versions.bun} (${osInfo})`);
     } else if (process4.versions.deno) {
@@ -40936,12 +41683,12 @@ function getOperationRequestInfo(request) {
   if (hasOriginalRequest(request)) {
     return getOperationRequestInfo(request[originalRequestSymbol]);
   }
-  let info = state2.operationRequestMap.get(request);
-  if (!info) {
-    info = {};
-    state2.operationRequestMap.set(request, info);
+  let info2 = state2.operationRequestMap.get(request);
+  if (!info2) {
+    info2 = {};
+    state2.operationRequestMap.set(request, info2);
   }
-  return info;
+  return info2;
 }
 
 // node_modules/@azure/core-client/dist/esm/deserializationPolicy.js
@@ -43150,229 +43897,1388 @@ function createTokenProvider(inputs, credential = createCredential(inputs), time
   };
 }
 
-// src/http.ts
-var userAgent = "synapse-deploy";
-var DATA_PLANE_SOCKET_TIMEOUT_MS = 3e5;
-var MAX_ATTEMPTS = 5;
-var BASE_RETRY_WAIT_MS = 2e3;
-var MAX_RETRY_WAIT_MS = 6e4;
-var MAX_SERVICE_MESSAGE_CHARS = 2e3;
-var HTTP_DATE = /^(?:[A-Za-z]{3,9}, \d.*|[A-Za-z]{3} [A-Za-z]{3} .*)\d{2}:\d{2}:\d{2}/;
-var PERMANENT_ERROR_CODE = /^(?:CERT_|ERR_TLS_|ERR_SSL_|DEPTH_ZERO_SELF_SIGNED_CERT|SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_(?:GET_ISSUER_CERT|VERIFY_LEAF_SIGNATURE)|ENOTFOUND$)/;
-var RETRYABLE_STATUSES = /* @__PURE__ */ new Set([429, 500, 502, 503, 504]);
-function createHttpClient(socketTimeout) {
-  return new HttpClient(userAgent, [], { socketTimeout, allowRedirects: false });
+// src/defaults.ts
+var DEFAULT_LINKED_SERVICE = /-workspacedefault(sqlserver|storage)$/i;
+var DEFAULT_CREDENTIAL = /^workspacesystemidentity$/i;
+var DEFAULT_ENDPOINT = /^synapse-ws-(sql|sqlondemand|kusto)--/i;
+var REMAPPABLE_LINKED_SERVICE = /^(.+)-WorkspaceDefault(Storage|SqlServer)$/i;
+function isServiceDefault(kind2, name3) {
+  switch (kind2) {
+    case "linkedServices":
+      return DEFAULT_LINKED_SERVICE.test(name3);
+    case "credentials":
+      return DEFAULT_CREDENTIAL.test(name3);
+    case "managedPrivateEndpoints":
+      return DEFAULT_ENDPOINT.test(name3);
+    default:
+      return false;
+  }
 }
-function isRedirectStatus(status) {
-  return status !== void 0 && status >= 300 && status < 400;
+function remapDefaultName(name3, workspaceName) {
+  const match = REMAPPABLE_LINKED_SERVICE.exec(name3);
+  if (!match || (match[1] ?? "").toLowerCase() === workspaceName.toLowerCase()) {
+    return name3;
+  }
+  const suffix = (match[2] ?? "").toLowerCase() === "storage" ? "Storage" : "SqlServer";
+  return `${workspaceName}-WorkspaceDefault${suffix}`;
 }
-function redirectError(location) {
-  return new Error(
-    `Unexpected redirect to ${location ?? "an unknown location"}; redirects are disabled because every request carries a bearer token.`
-  );
+function remapDependency(text, workspaceName) {
+  const slash = text.lastIndexOf("/");
+  const collection = text.slice(0, slash).split("/").pop() ?? "";
+  if (collection.toLowerCase() !== "linkedservices") {
+    return text;
+  }
+  return text.slice(0, slash + 1) + remapDefaultName(text.slice(slash + 1), workspaceName);
 }
-function readBody(res, idleTimeoutMs = DATA_PLANE_SOCKET_TIMEOUT_MS) {
-  const message = res.message;
-  const host = message.req?.host ?? "the server";
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let ended = false;
-    const fail = (reason) => {
-      if (!ended) {
-        ended = true;
-        reject(new Error(`${reason}; re-run the job.`));
+function remapDefaultReferences(value, workspaceName) {
+  if (Array.isArray(value)) {
+    return value.map((item) => remapDefaultReferences(item, workspaceName));
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  const out = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "referenceName" && typeof child === "string" && value["type"] === "LinkedServiceReference") {
+      out[key] = remapDefaultName(child, workspaceName);
+    } else if (key === "dependsOn" && Array.isArray(child)) {
+      out[key] = child.map(
+        (item) => typeof item === "string" ? remapDependency(item, workspaceName) : remapDefaultReferences(item, workspaceName)
+      );
+    } else {
+      out[key] = remapDefaultReferences(child, workspaceName);
+    }
+  }
+  return out;
+}
+
+// src/graph.ts
+var MAX_PARALLEL = 8;
+var SKIPPED_KINDS = new Set(
+  KINDS.filter((kind2) => kind2.plane === "skip").map((kind2) => kind2.id)
+);
+function resolveDependencies(all, deployable) {
+  const deployed = new Set(deployable.map((artifact) => artifact.key));
+  const known = new Set(all.map((artifact) => artifact.key));
+  const unresolved = [];
+  const nodes = deployable.map((artifact) => {
+    const dependsOn = [];
+    for (const dependency of artifact.dependsOn) {
+      if (deployed.has(dependency)) {
+        dependsOn.push(dependency);
+      } else if (!known.has(dependency) && !SKIPPED_KINDS.has(dependency.split("/")[0] ?? "")) {
+        unresolved.push(
+          `${artifact.key} depends on ${dependency}, which is not in the template. Add it to the template or remove the dependency.`
+        );
       }
-    };
-    message.on("data", (chunk) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    message.on("end", () => {
-      if (!ended) {
-        ended = true;
-        resolve(Buffer.concat(chunks).toString());
+    }
+    return { key: artifact.key, dependsOn };
+  });
+  return { nodes, unresolved };
+}
+function findCycle(nodes) {
+  const byKey = new Map(nodes.map((node) => [node.key, node]));
+  const state3 = /* @__PURE__ */ new Map();
+  const stack = [];
+  const visit = (key) => {
+    const seen = state3.get(key);
+    if (seen === "done") {
+      return void 0;
+    }
+    if (seen === "visiting") {
+      return [...stack.slice(stack.indexOf(key)), key];
+    }
+    state3.set(key, "visiting");
+    stack.push(key);
+    for (const dependency of byKey.get(key)?.dependsOn ?? []) {
+      if (byKey.has(dependency)) {
+        const cycle = visit(dependency);
+        if (cycle) {
+          return cycle;
+        }
       }
-    });
-    message.on("error", (err) => {
-      fail(`Reading the response from ${host} failed: ${err.message}`);
-    });
-    message.on("aborted", () => {
-      fail(`Connection closed before the response from ${host} was complete`);
-    });
-    message.on("close", () => {
-      if (!message.complete) {
-        fail(`Connection closed before the response from ${host} was complete`);
+    }
+    stack.pop();
+    state3.set(key, "done");
+    return void 0;
+  };
+  for (const node of nodes) {
+    const cycle = visit(node.key);
+    if (cycle) {
+      return cycle;
+    }
+  }
+  return void 0;
+}
+function buildGraph(all, deployable = all.filter((artifact) => artifact.skip === void 0)) {
+  const { nodes, unresolved } = resolveDependencies(all, deployable);
+  if (unresolved.length > 0) {
+    throw new Error(`Unresolved dependencies:
+- ${unresolved.join("\n- ")}`);
+  }
+  const cycle = findCycle(nodes);
+  if (cycle) {
+    throw new Error(
+      `Dependency cycle: ${cycle.join(" -> ")}. Remove one of the dependsOn entries in the cycle.`
+    );
+  }
+  return nodes;
+}
+async function schedule(nodes, run2, limit = MAX_PARALLEL) {
+  const keys = new Set(nodes.map((node) => node.key));
+  const succeeded = /* @__PURE__ */ new Set();
+  const started = /* @__PURE__ */ new Set();
+  const running = /* @__PURE__ */ new Set();
+  const result = { succeeded: [], failed: [], notStarted: [] };
+  const start = (node) => {
+    started.add(node.key);
+    const task = (async () => {
+      try {
+        await run2(node.key);
+        succeeded.add(node.key);
+        result.succeeded.push(node.key);
+      } catch (error2) {
+        result.failed.push({ key: node.key, error: error2 });
       }
+    })().then(() => {
+      running.delete(task);
     });
-    message.setTimeout(idleTimeoutMs, () => {
-      const reason = `No data from ${host} for ${Math.round(idleTimeoutMs / 1e3)} s`;
-      fail(reason);
-      message.destroy(new Error(reason));
+    running.add(task);
+  };
+  for (; ; ) {
+    if (result.failed.length === 0) {
+      for (const node of nodes) {
+        if (running.size >= limit) {
+          break;
+        }
+        if (!started.has(node.key) && node.dependsOn.every((dependency) => !keys.has(dependency) || succeeded.has(dependency))) {
+          start(node);
+        }
+      }
+    }
+    if (running.size === 0) {
+      break;
+    }
+    await Promise.race(running);
+  }
+  result.notStarted = nodes.filter((node) => !started.has(node.key)).map((node) => node.key);
+  return result;
+}
+
+// src/lakedb.ts
+function requireString(value, what, database) {
+  if (typeof value !== "string" || value === "") {
+    throw new Error(
+      `Lake database ${database}: ${what} is missing or not a string in a Ddls entry; re-export the workspace template.`
+    );
+  }
+  return value;
+}
+async function deployLakeDatabase(ctx, database, resource) {
+  const ddls = asRecord(asRecord(resource)?.properties)?.Ddls;
+  if (!Array.isArray(ddls)) {
+    throw new Error(
+      `Lake database ${database}: properties.Ddls is missing; re-export the workspace template.`
+    );
+  }
+  for (const ddl of ddls) {
+    const entity = asRecord(asRecord(ddl)?.NewEntity);
+    if (entity === void 0) {
+      throw new Error(
+        `Lake database ${database}: a Ddls entry has no NewEntity; re-export the workspace template.`
+      );
+    }
+    const { Name, EntityType, ...properties } = entity;
+    const name3 = requireString(Name, "Name", database);
+    const type = requireString(EntityType, "EntityType", database);
+    const lowerType = type.toLowerCase();
+    let path3;
+    if (lowerType === "database") {
+      path3 = `/databases/${encodeURIComponent(name3)}`;
+    } else {
+      const owner = requireString(
+        asRecord(properties.Namespace)?.DatabaseName,
+        "Namespace.DatabaseName",
+        database
+      );
+      path3 = `/databases/${encodeURIComponent(owner)}/${lowerType}s/${encodeURIComponent(name3)}`;
+    }
+    if (lowerType === "relationship" && !("RelationshipType" in properties)) {
+      properties.RelationshipType = 0;
+    }
+    const put = await ctx.http.request(
+      "PUT",
+      `${ctx.dataPlane}${path3}?api-version=${LAKE_DATABASE_API_VERSION}`,
+      ctx.scope,
+      { name: name3, type, properties }
+    );
+    await awaitDataPlaneDeploy(ctx, put, {
+      scope: ctx.scope,
+      label: `databases/${database} ${lowerType} ${name3}`,
+      name: name3,
+      lenient: true
     });
+  }
+}
+var MAX_PAGES = 1e3;
+function nameOf(item) {
+  const name3 = item.Name ?? item.name;
+  return typeof name3 === "string" && name3 !== "" ? name3 : void 0;
+}
+async function listItems(ctx, path3) {
+  const base = `${ctx.dataPlane}${path3}?api-version=${LAKE_DATABASE_API_VERSION}`;
+  const items = [];
+  const seen = /* @__PURE__ */ new Set();
+  let url = base;
+  for (let page = 1; ; page++) {
+    const res = ensureSuccess(await ctx.http.request("GET", url, ctx.scope));
+    const body = asRecord(res.json());
+    if (!Array.isArray(body?.items)) {
+      throw new Error(
+        `Listing ${path3} answered without an "items" array; check that the identity can read lake databases and re-run the job.`
+      );
+    }
+    for (const item of body.items) {
+      const record = asRecord(item);
+      if (record !== void 0) {
+        items.push(record);
+      }
+    }
+    const token = body.continuationToken;
+    if (typeof token !== "string" || token === "") {
+      return items;
+    }
+    if (seen.has(token) || page >= MAX_PAGES) {
+      throw new Error(
+        `Listing ${path3} keeps returning continuation tokens (page ${page}); re-run the job, and report it if it persists.`
+      );
+    }
+    seen.add(token);
+    url = `${base}&continuationToken=${encodeURIComponent(token)}`;
+  }
+}
+async function listLakeDatabases(ctx) {
+  const names = [];
+  for (const item of await listItems(ctx, "/databases")) {
+    const origin = asRecord(item.Origin)?.Type;
+    const symscdm = asRecord(item.Properties)?.IsSyMSCDMDatabase;
+    const name3 = nameOf(item);
+    if (name3 !== void 0 && typeof origin === "string" && origin.toUpperCase() === "SPARK" && symscdm === true) {
+      names.push(name3);
+    }
+  }
+  return names;
+}
+async function listLakeChildren(ctx, database, type) {
+  const items = await listItems(ctx, `/databases/${encodeURIComponent(database)}/${type}`);
+  return items.flatMap((item) => {
+    const name3 = nameOf(item);
+    return name3 === void 0 ? [] : [{ database, type, name: name3 }];
   });
 }
-function permissionHint(status, role) {
-  return status === 401 || status === 403 ? ` The identity is likely missing ${role}; grant it and re-run the job.` : "";
+function templateEntityNames(resource) {
+  const ddls = asRecord(asRecord(resource)?.properties)?.Ddls;
+  const names = /* @__PURE__ */ new Set();
+  for (const ddl of Array.isArray(ddls) ? ddls : []) {
+    const name3 = asRecord(asRecord(ddl)?.NewEntity)?.Name;
+    if (typeof name3 === "string") {
+      names.add(name3.toLowerCase());
+    }
+  }
+  return names;
 }
-var GENERIC_ROLE = "a role for this call (Synapse RBAC on the workspace for the development endpoint, Azure RBAC on the workspace for Azure Resource Manager)";
-var HttpError = class extends Error {
-  status;
-  serviceMessage;
-  constructor(message, status, serviceMessage, cause) {
-    super(message, { cause });
-    this.name = "HttpError";
-    this.status = status;
-    this.serviceMessage = serviceMessage;
+async function deleteLakeChild(ctx, child) {
+  const res = await ctx.http.request(
+    "DELETE",
+    `${ctx.dataPlane}/databases/${encodeURIComponent(child.database)}/${child.type}/${encodeURIComponent(child.name)}?api-version=${LAKE_DATABASE_API_VERSION}`,
+    ctx.scope
+  );
+  await awaitDelete(ctx, res, { scope: ctx.scope, label: describeLakeChild(child) });
+}
+function describeLakeChild(child) {
+  return `databases/${child.database} ${child.type === "tables" ? "table" : "relationship"} ${child.name}`;
+}
+
+// src/template.ts
+import { readFile as readFile2 } from "node:fs/promises";
+
+// src/expression.ts
+var ExpressionError = class extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = "ExpressionError";
   }
 };
-function pathOf(url) {
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return url;
+var SUPPORTED_FUNCTIONS = /* @__PURE__ */ new Set([
+  "parameters",
+  "variables",
+  "concat",
+  "resourceid"
+]);
+var LOOKS_LIKE_SUPPORTED_CALL = /^\[\s*(parameters|variables|concat|resourceid)\s*\(/i;
+var ParseError = class extends Error {
+};
+var Parser = class {
+  pos = 0;
+  text;
+  constructor(text) {
+    this.text = text;
   }
-}
-function serviceMessageOf(text) {
-  let message = text;
-  try {
-    const parsed = JSON.parse(text);
-    if (typeof parsed === "object" && parsed !== null) {
-      const record = parsed;
-      const inner = typeof record.error === "object" && record.error !== null ? record.error.message : void 0;
-      if (typeof inner === "string") {
-        message = inner;
-      } else if (typeof record.message === "string") {
-        message = record.message;
-      }
+  parseAll() {
+    const node = this.expression();
+    this.skipSpace();
+    if (this.pos < this.text.length) {
+      throw new ParseError(`unexpected "${this.text.charAt(this.pos)}" at position ${this.pos}`);
     }
-  } catch {
+    return node;
   }
-  return message.length > MAX_SERVICE_MESSAGE_CHARS ? message.slice(0, MAX_SERVICE_MESSAGE_CHARS) + "..." : message;
-}
-function responseError(res) {
-  const serviceMessage = serviceMessageOf(res.text);
-  const attempts = res.attempts > 1 ? ` after ${res.attempts} attempts` : "";
-  return new HttpError(
-    `${res.method} ${pathOf(res.url)} failed with status ${res.status}${attempts}` + (serviceMessage ? `: ${serviceMessage}` : "") + "." + permissionHint(res.status, GENERIC_ROLE),
-    res.status,
-    serviceMessage
-  );
-}
-function errorCode(err) {
-  if (typeof err !== "object" || err === null) {
-    return void 0;
-  }
-  const record = err;
-  return typeof record.code === "string" ? record.code : errorCode(record.cause);
-}
-function isPermanentConnectionError(err) {
-  const code = errorCode(err);
-  return code !== void 0 && PERMANENT_ERROR_CODE.test(code);
-}
-function headerValue(headers, name3) {
-  const raw = headers[name3];
-  return Array.isArray(raw) ? raw[0] : raw;
-}
-function retryWaitMs(headers, attempt, nowMs) {
-  const header = headerValue(headers, "retry-after");
-  let wait = BASE_RETRY_WAIT_MS * 2 ** (attempt - 1);
-  if (header !== void 0 && header.trim() !== "") {
-    const value = header.trim();
-    if (/^\d+$/.test(value)) {
-      wait = Number(value) * 1e3;
-    } else if (HTTP_DATE.test(value)) {
-      const date = Date.parse(/GMT$/.test(value) ? value : `${value} GMT`);
-      if (!Number.isNaN(date)) {
-        wait = Math.max(0, date - nowMs);
-      }
+  skipSpace() {
+    while (/\s/.test(this.text.charAt(this.pos)) && this.pos < this.text.length) {
+      this.pos += 1;
     }
   }
-  return Math.min(wait, MAX_RETRY_WAIT_MS);
-}
-function defaultSleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-function createHttp(options) {
-  const client = options.client ?? createHttpClient(DATA_PLANE_SOCKET_TIMEOUT_MS);
-  const sleep = options.sleep ?? defaultSleep;
-  const now = options.now ?? Date.now;
-  const maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
-  const bodyIdleTimeoutMs = options.bodyIdleTimeoutMs ?? DATA_PLANE_SOCKET_TIMEOUT_MS;
-  return {
-    async request(method, url, scope, body) {
-      const payload = body === void 0 ? null : JSON.stringify(body);
-      for (let attempt = 1; ; attempt++) {
-        const token = await options.tokens.getToken(scope);
-        const headers = {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json"
-        };
-        if (payload !== null) {
-          headers["Content-Type"] = "application/json";
-        }
-        const started = now();
-        let status;
-        let responseHeaders;
-        let text;
-        try {
-          const res = await client.request(method, url, payload, headers);
-          status = res.message.statusCode ?? 0;
-          responseHeaders = res.message.headers;
-          text = await readBody(res, bodyIdleTimeoutMs);
-        } catch (err) {
-          const reason = err instanceof Error ? err.message : String(err);
-          debug(`${method} ${pathOf(url)} failed: ${reason} (attempt ${attempt})`);
-          if (isPermanentConnectionError(err)) {
-            throw new HttpError(
-              `${method} ${pathOf(url)} failed: ${reason}. Retrying cannot help; check the host name, the TLS certificate and any proxy in between.`,
-              void 0,
-              reason,
-              err
-            );
-          }
-          if (attempt >= maxAttempts) {
-            throw new HttpError(
-              `${method} ${pathOf(url)} failed after ${attempt} attempts: ${reason}`,
-              void 0,
-              reason,
-              err
-            );
-          }
-          await sleep(retryWaitMs({}, attempt, now()));
+  expression() {
+    this.skipSpace();
+    const ch = this.text.charAt(this.pos);
+    if (ch === "'") {
+      return this.string();
+    }
+    if (ch === "-" || /[0-9]/.test(ch)) {
+      return this.integer();
+    }
+    if (/[A-Za-z]/.test(ch)) {
+      return this.call();
+    }
+    throw new ParseError(
+      this.pos >= this.text.length ? "the expression ends early" : `unexpected "${ch}" at position ${this.pos}`
+    );
+  }
+  string() {
+    this.pos += 1;
+    let value = "";
+    for (; ; ) {
+      if (this.pos >= this.text.length) {
+        throw new ParseError("a quoted string is not closed");
+      }
+      const ch = this.text.charAt(this.pos);
+      if (ch === "'") {
+        if (this.text.charAt(this.pos + 1) === "'") {
+          value += "'";
+          this.pos += 2;
           continue;
         }
-        debug(
-          `${method} ${pathOf(url)} -> ${status} (attempt ${attempt}, ${now() - started} ms)`
+        this.pos += 1;
+        return { type: "string", value };
+      }
+      value += ch;
+      this.pos += 1;
+    }
+  }
+  integer() {
+    const match = /^-?[0-9]+/.exec(this.text.slice(this.pos));
+    if (!match) {
+      throw new ParseError(`unexpected "-" at position ${this.pos}`);
+    }
+    this.pos += match[0].length;
+    const value = Number(match[0]);
+    if (!Number.isSafeInteger(value)) {
+      throw new ParseError(`the integer ${match[0]} is too large`);
+    }
+    return { type: "integer", value };
+  }
+  call() {
+    const match = /^[A-Za-z][A-Za-z0-9]*/.exec(this.text.slice(this.pos));
+    const name3 = match ? match[0] : "";
+    this.pos += name3.length;
+    this.skipSpace();
+    if (this.text.charAt(this.pos) !== "(") {
+      throw new ParseError(`expected "(" after ${name3} at position ${this.pos}`);
+    }
+    this.pos += 1;
+    const args = [];
+    this.skipSpace();
+    if (this.text.charAt(this.pos) === ")") {
+      this.pos += 1;
+      return { type: "call", name: name3, args };
+    }
+    for (; ; ) {
+      args.push(this.expression());
+      this.skipSpace();
+      const ch = this.text.charAt(this.pos);
+      this.pos += 1;
+      if (ch === ")") {
+        return { type: "call", name: name3, args };
+      }
+      if (ch !== ",") {
+        throw new ParseError(
+          this.pos > this.text.length ? `the call to ${name3} is not closed` : `expected "," or ")" in the call to ${name3} at position ${this.pos - 1}`
         );
-        if (isRedirectStatus(status)) {
-          throw redirectError(headerValue(responseHeaders, "location"));
-        }
-        const response = {
-          status,
-          headers: responseHeaders,
-          text,
-          json: () => {
-            try {
-              return JSON.parse(text);
-            } catch {
-              throw new Error(
-                `${method} ${pathOf(url)} answered with status ${status} and a body that is not JSON.`
-              );
-            }
-          },
-          method,
-          url,
-          attempts: attempt
-        };
-        if (!RETRYABLE_STATUSES.has(status)) {
-          return response;
-        }
-        if (attempt >= maxAttempts) {
-          throw responseError(response);
-        }
-        await sleep(retryWaitMs(responseHeaders, attempt, now()));
       }
     }
+  }
+};
+function unsupportedCall(node) {
+  if (node.type !== "call") {
+    return void 0;
+  }
+  if (!SUPPORTED_FUNCTIONS.has(node.name.toLowerCase())) {
+    return node.name;
+  }
+  for (const arg of node.args) {
+    const found = unsupportedCall(arg);
+    if (found !== void 0) {
+      return found;
+    }
+  }
+  return void 0;
+}
+function classify(text) {
+  if (!text.startsWith("[") || !text.endsWith("]")) {
+    return { kind: "literal" };
+  }
+  let node;
+  try {
+    node = new Parser(text.slice(1, -1)).parseAll();
+  } catch (error2) {
+    if (error2 instanceof ParseError && LOOKS_LIKE_SUPPORTED_CALL.test(text)) {
+      return { kind: "invalid", reason: error2.message };
+    }
+    return { kind: "literal" };
+  }
+  if (node.type !== "call" || !SUPPORTED_FUNCTIONS.has(node.name.toLowerCase())) {
+    return { kind: "literal" };
+  }
+  const unsupported = unsupportedCall(node);
+  if (unsupported !== void 0) {
+    return {
+      kind: "invalid",
+      reason: `the function ${unsupported} is not supported (supported: parameters, variables, concat, resourceId)`
+    };
+  }
+  return { kind: "expression", node };
+}
+function jsonTypeName(value) {
+  if (value === null) {
+    return "null";
+  }
+  if (Array.isArray(value)) {
+    return "an array";
+  }
+  switch (typeof value) {
+    case "string":
+      return "a string";
+    case "number":
+      return Number.isInteger(value) ? "an integer" : "a number";
+    case "boolean":
+      return "a boolean";
+    case "object":
+      return "an object";
+    default:
+      return "undefined";
+  }
+}
+function nameArgument(fn, args) {
+  const [name3] = args;
+  if (args.length !== 1 || typeof name3 !== "string") {
+    throw new ExpressionError(`${fn}() takes one string argument (the name).`);
+  }
+  return name3;
+}
+function nameSegment(fn, index, value) {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return String(value);
+  }
+  throw new ExpressionError(
+    `${fn}() argument ${index + 1} is ${jsonTypeName(value)}; only strings and integers can be used here.`
+  );
+}
+function resourceId(args) {
+  const [type, ...names] = args;
+  if (typeof type !== "string") {
+    throw new ExpressionError("resourceId() takes the resource type as its first argument.");
+  }
+  const parts = type.split("/");
+  const segments = parts.slice(1);
+  if (parts.length < 2 ? args.length > 2 : names.length > segments.length) {
+    throw new ExpressionError(
+      "resourceId() with a leading subscription or resource group argument is not supported. Pass only the resource type and the names."
+    );
+  }
+  if (parts.length < 2 || names.length !== segments.length) {
+    throw new ExpressionError(
+      `resourceId('${type}', ...) needs ${segments.length} name(s), one per type segment, and got ${names.length}.`
+    );
+  }
+  const out = [parts[0] ?? ""];
+  segments.forEach((segment, index) => {
+    out.push(segment, nameSegment("resourceId", index + 1, names[index] ?? null));
+  });
+  return out.join("/");
+}
+function evaluateNode(node, context3) {
+  if (node.type !== "call") {
+    return node.value;
+  }
+  const args = node.args.map((arg) => evaluateNode(arg, context3));
+  switch (node.name.toLowerCase()) {
+    case "parameters":
+      return structuredClone(context3.parameter(nameArgument("parameters", args)));
+    case "variables":
+      return structuredClone(context3.variable(nameArgument("variables", args)));
+    case "concat":
+      if (args.length === 0) {
+        throw new ExpressionError("concat() needs at least one argument.");
+      }
+      return args.map((arg, index) => nameSegment("concat", index, arg)).join("");
+    case "resourceid":
+      if (context3.allowResourceId === false) {
+        throw new ExpressionError(
+          "resourceId() is only supported in a resource name and in dependsOn."
+        );
+      }
+      return resourceId(args);
+    default:
+      throw new ExpressionError(`the function ${node.name} is not supported.`);
+  }
+}
+var KEEP_LITERAL_HINT = 'If this text is meant to be literal (for example notebook code), end it with a space or ";" so it is not read as an ARM expression.';
+function evaluateString(text, context3) {
+  const classified = classify(text);
+  if (classified.kind === "literal") {
+    return text;
+  }
+  if (classified.kind === "invalid") {
+    throw new ExpressionError(
+      `cannot evaluate ${JSON.stringify(text)}: ${classified.reason}. ${KEEP_LITERAL_HINT}`
+    );
+  }
+  try {
+    return evaluateNode(classified.node, context3);
+  } catch (error2) {
+    if (error2 instanceof ExpressionError) {
+      throw new ExpressionError(`cannot evaluate ${JSON.stringify(text)}: ${error2.message}`, {
+        cause: error2
+      });
+    }
+    throw error2;
+  }
+}
+
+// src/template.ts
+var SKIP_DEFAULT = "service default";
+var SKIP_INFRASTRUCTURE = "left to infrastructure as code";
+function artifactKey(kind2, name3) {
+  return `${kind2}/${name3.toLowerCase()}`;
+}
+var TYPE_PREFIX = "microsoft.synapse/workspaces/";
+var SECURE_TYPES = /* @__PURE__ */ new Set(["securestring", "secureobject"]);
+function isObject2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function parseJson(text, label) {
+  try {
+    return JSON.parse(text);
+  } catch (error2) {
+    throw new Error(
+      `${label} is not valid JSON (${error2.message}); check the file or re-export it.`,
+      { cause: error2 }
+    );
+  }
+}
+function declaredParameters(template) {
+  const declared = /* @__PURE__ */ new Map();
+  const section = template["parameters"];
+  if (section === void 0) {
+    return declared;
+  }
+  if (!isObject2(section)) {
+    throw new Error(`The template's "parameters" must be an object.`);
+  }
+  for (const [name3, definition] of Object.entries(section)) {
+    const def = isObject2(definition) ? definition : {};
+    declared.set(name3.toLowerCase(), {
+      name: name3,
+      type: typeof def["type"] === "string" ? def["type"].toLowerCase() : "string",
+      hasDefault: Object.hasOwn(def, "defaultValue"),
+      defaultValue: def["defaultValue"] ?? null
+    });
+  }
+  return declared;
+}
+function declaredList(declared) {
+  const names = [...declared.values()].map((entry) => entry.name);
+  const shown = names.slice(0, 20).join(", ");
+  return names.length > 20 ? `${shown}, and ${names.length - 20} more` : shown;
+}
+function typedOverride(declared, raw) {
+  const bad = (expected) => {
+    throw new Error(
+      `Parameter ${declared.name} is declared ${declared.type}, but the value in the parameters input is not ${expected}. Fix the value on its name=value line.`
+    );
   };
+  switch (declared.type) {
+    case "int":
+      return /^\s*-?[0-9]+\s*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : bad("an integer");
+    case "bool": {
+      const text = raw.trim();
+      return text === "true" ? true : text === "false" ? false : bad("true or false");
+    }
+    case "object":
+    case "secureobject":
+    case "array": {
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return bad("valid JSON");
+      }
+      const isArray = Array.isArray(parsed);
+      if (declared.type === "array" ? !isArray : !isObject2(parsed)) {
+        return bad(declared.type === "array" ? "a JSON array" : "a JSON object");
+      }
+      return parsed;
+    }
+    default:
+      return raw;
+  }
+}
+function secureLeaves(value, out = []) {
+  if (typeof value === "string") {
+    out.push(value);
+  } else if (Array.isArray(value)) {
+    value.forEach((item) => secureLeaves(item, out));
+  } else if (value !== null && typeof value === "object") {
+    Object.values(value).forEach((item) => secureLeaves(item, out));
+  }
+  return out;
+}
+var Scope = class {
+  declared;
+  resolving = [];
+  variables = /* @__PURE__ */ new Map();
+  supplied = /* @__PURE__ */ new Map();
+  cache = /* @__PURE__ */ new Map();
+  constructor(declared, variables) {
+    this.declared = declared;
+    if (isObject2(variables)) {
+      for (const [name3, raw] of Object.entries(variables)) {
+        this.variables.set(name3.toLowerCase(), { name: name3, raw });
+      }
+    }
+  }
+  /** String leaves of secure parameters: masked, and kept out of warnings. */
+  secrets = /* @__PURE__ */ new Set();
+  allowResourceId = false;
+  maskSecure(value) {
+    for (const leaf of secureLeaves(value)) {
+      if (!this.secrets.has(leaf) && mask(leaf)) {
+        this.secrets.add(leaf);
+      }
+    }
+  }
+  /** Runs `action` with resourceId allowed: only names and dependsOn may use it. */
+  withResourceId(action) {
+    this.allowResourceId = true;
+    try {
+      return action();
+    } finally {
+      this.allowResourceId = false;
+    }
+  }
+  supply(name3, value) {
+    this.supplied.set(name3.toLowerCase(), value);
+  }
+  isSupplied(name3) {
+    return this.supplied.has(name3.toLowerCase());
+  }
+  suppliedValue(name3) {
+    return this.supplied.get(name3.toLowerCase());
+  }
+  parameter(name3) {
+    const key = name3.toLowerCase();
+    const supplied = this.supplied.get(key);
+    if (supplied !== void 0) {
+      return supplied;
+    }
+    const declared = this.declared.get(key);
+    if (!declared) {
+      throw new ExpressionError(
+        `the template declares no parameter ${name3} (declared: ${declaredList(this.declared)}).`
+      );
+    }
+    if (!declared.hasDefault) {
+      throw new ExpressionError(
+        `parameter ${declared.name} has no value and no default; set it in a parameters file or the parameters input.`
+      );
+    }
+    return this.once(`parameters('${declared.name}')`, key, () => this.deep(declared.defaultValue));
+  }
+  variable(name3) {
+    const key = name3.toLowerCase();
+    const variable = this.variables.get(key);
+    if (!variable) {
+      throw new ExpressionError(`the template declares no variable ${name3}.`);
+    }
+    return this.once(`variables('${variable.name}')`, `v:${key}`, () => this.deep(variable.raw));
+  }
+  once(label, baseKey, compute) {
+    const key = `${baseKey}:${this.allowResourceId}`;
+    const cached = this.cache.get(key);
+    if (cached !== void 0) {
+      return cached;
+    }
+    if (this.resolving.includes(key)) {
+      throw new ExpressionError(
+        `${label} refers to itself (${[...this.resolving, key].join(" -> ")}).`
+      );
+    }
+    this.resolving.push(key);
+    try {
+      const value = compute();
+      this.cache.set(key, value);
+      return value;
+    } finally {
+      this.resolving.pop();
+    }
+  }
+  /** Evaluates every string value; object keys are never evaluated. */
+  deep(value) {
+    if (typeof value === "string") {
+      return evaluateString(value, this);
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.deep(item));
+    }
+    if (value !== null && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, this.deep(item)]));
+    }
+    return value;
+  }
+};
+function evaluateAt(scope, value, path3) {
+  if (typeof value === "string") {
+    try {
+      return evaluateString(value, scope);
+    } catch (error2) {
+      if (error2 instanceof ExpressionError) {
+        throw new Error(`${path3}: ${error2.message}`, { cause: error2 });
+      }
+      throw error2;
+    }
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, index) => evaluateAt(scope, item, `${path3}[${index}]`));
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, evaluateAt(scope, item, `${path3}.${key}`)])
+    );
+  }
+  return value;
+}
+function buildScope(source, template) {
+  const declared = declaredParameters(template);
+  const scope = new Scope(declared, template["variables"]);
+  const problems = [];
+  const attempt = (action) => {
+    try {
+      action();
+    } catch (error2) {
+      problems.push(error2.message);
+    }
+  };
+  const supply = (entry, name3, value) => {
+    scope.supply(name3, value);
+    if (SECURE_TYPES.has(entry.type)) {
+      scope.maskSecure(value);
+    }
+  };
+  for (const file of source.parameterFiles ?? []) {
+    const parsed = parseJson(file.text, `Parameters file ${file.name}`);
+    const section = isObject2(parsed) ? parsed["parameters"] : void 0;
+    if (!isObject2(section)) {
+      throw new Error(
+        `Parameters file ${file.name} has no "parameters" object; use the TemplateParametersForWorkspace.json format.`
+      );
+    }
+    for (const [name3, entry] of Object.entries(section)) {
+      attempt(() => {
+        const entryDeclared = declared.get(name3.toLowerCase());
+        if (!entryDeclared) {
+          throw new Error(
+            `Parameters file ${file.name} sets ${name3}, which the template does not declare. Declared: ${declaredList(declared)}.`
+          );
+        }
+        if (!isObject2(entry)) {
+          throw new Error(
+            `Parameter ${name3} in ${file.name} must be {"value": ...}, as in TemplateParametersForWorkspace.json.`
+          );
+        }
+        if (Object.hasOwn(entry, "reference")) {
+          throw new Error(
+            `Parameter ${name3} in ${file.name} is a Key Vault reference. Key Vault references only work in ARM deployments; pass the value in the parameters input instead.`
+          );
+        }
+        const value = entry["value"];
+        if (value === void 0) {
+          throw new Error(`Parameter ${name3} in ${file.name} has no "value".`);
+        }
+        supply(entryDeclared, name3, value);
+      });
+    }
+  }
+  for (const override of source.overrides ?? []) {
+    attempt(() => {
+      const entry = declared.get(override.name.toLowerCase());
+      if (!entry) {
+        throw new Error(
+          `The parameters input sets ${override.name}, which the template does not declare. Declared: ${declaredList(declared)}.`
+        );
+      }
+      supply(entry, override.name, typedOverride(entry, override.value));
+    });
+  }
+  const forced = declared.get("workspacename");
+  if (forced) {
+    const previous = scope.isSupplied("workspaceName") ? scope.suppliedValue("workspaceName") : forced.defaultValue;
+    if (typeof previous === "string" && previous !== "" && previous !== source.workspaceName) {
+      info(
+        `Parameter workspaceName is ${previous} in the template inputs; using the workspace-name input ${source.workspaceName}.`
+      );
+    }
+    scope.supply("workspaceName", source.workspaceName);
+  }
+  const missing = [...declared.values()].filter(
+    (entry) => !scope.isSupplied(entry.name) && !entry.hasDefault
+  );
+  if (missing.length > 0) {
+    problems.push(
+      `No value for parameter(s) ${missing.map((entry) => entry.name).join(", ")}: add them to a parameters file or the parameters input, or give them a default in the template.`
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(`The parameters cannot be used:
+- ${problems.join("\n- ")}`);
+  }
+  for (const entry of declared.values()) {
+    let value;
+    try {
+      value = scope.parameter(entry.name);
+    } catch (error2) {
+      throw new Error(`Parameter ${entry.name}: ${error2.message}`, { cause: error2 });
+    }
+    if (SECURE_TYPES.has(entry.type)) {
+      scope.maskSecure(value);
+    }
+  }
+  return scope;
+}
+var DEPENDENCY_HINT = "Expected Microsoft.Synapse/workspaces/<workspace>/<collection>/<name> (or .../managedVirtualNetworks/default/managedPrivateEndpoints/<name>).";
+function parseDependency(text) {
+  if (!text.toLowerCase().startsWith(TYPE_PREFIX)) {
+    throw new Error(
+      `dependsOn entry ${JSON.stringify(text)} is not a Synapse resource. ${DEPENDENCY_HINT}`
+    );
+  }
+  const rest = text.slice(TYPE_PREFIX.length).split("/");
+  if (rest.length === 1) {
+    return "workspace";
+  }
+  const [, first, second, third, fourth] = rest;
+  if (rest.length === 3 && first !== void 0 && second !== void 0) {
+    const kind2 = kindForCollection(first);
+    if (kind2) {
+      return artifactKey(kind2.id, second);
+    }
+  }
+  if (rest.length === 5 && first?.toLowerCase() === "managedvirtualnetworks" && third?.toLowerCase() === "managedprivateendpoints" && fourth !== void 0) {
+    return artifactKey("managedPrivateEndpoints", fourth);
+  }
+  throw new Error(`dependsOn entry ${JSON.stringify(text)} is not recognised. ${DEPENDENCY_HINT}`);
+}
+function resourceName(evaluated) {
+  if (typeof evaluated !== "string") {
+    throw new Error(`name must evaluate to a string, not ${jsonTypeName(evaluated)}.`);
+  }
+  const segments = evaluated.split("/");
+  const ok = segments.every((segment) => segment !== "") && (segments.length === 2 || segments.length === 3 && segments[1]?.toLowerCase() === "default");
+  if (!ok) {
+    throw new Error(
+      `name must evaluate to <workspace>/<name> or <workspace>/default/<name>; got ${JSON.stringify(evaluated)}.`
+    );
+  }
+  return segments[segments.length - 1] ?? "";
+}
+function warnNonStringDefaults(artifact, secrets) {
+  const properties = artifact.body["properties"];
+  if (!isObject2(properties)) {
+    return;
+  }
+  for (const section of ["parameters", "variables"]) {
+    const entries = properties[section];
+    if (!isObject2(entries)) {
+      continue;
+    }
+    for (const [name3, entry] of Object.entries(entries)) {
+      if (!isObject2(entry) || typeof entry["type"] !== "string" || entry["type"].toLowerCase() !== "string") {
+        continue;
+      }
+      const value = entry["defaultValue"];
+      if (value === void 0 || typeof value === "string") {
+        continue;
+      }
+      const shown = JSON.stringify(value);
+      const secret = [...secrets].some((leaf) => shown.includes(JSON.stringify(leaf).slice(1, -1)));
+      const detail = secret ? "" : ` (value: ${shown.length > 100 ? `${shown.slice(0, 100)}...` : shown})`;
+      warning(
+        `properties.${section}.${name3}.defaultValue: The export changed this string default to ${jsonTypeName(value)}${detail}; Synapse may reject it or use it as that type. Change the default in Studio (for example add a space) or set it at run time.`,
+        { title: `${artifact.kind.id}/${artifact.name}` }
+      );
+    }
+  }
+}
+function buildArtifact(resource, scope, workspaceName, info2) {
+  if (!isObject2(resource)) {
+    throw new Error("the resource is not an object.");
+  }
+  const type = resource["type"];
+  if (typeof type !== "string") {
+    throw new Error('the resource has no "type".');
+  }
+  const kind2 = kindForTemplateType(type);
+  if (!kind2) {
+    throw new Error(unsupportedTypeMessage(type));
+  }
+  const rawName = resource["name"];
+  if (typeof rawName !== "string") {
+    throw new Error('the resource has no "name".');
+  }
+  const sourceName = resourceName(scope.withResourceId(() => evaluateAt(scope, rawName, "name")));
+  info2.name = sourceName;
+  const serviceDefault = isServiceDefault(kind2.id, sourceName);
+  const name3 = serviceDefault ? remapDefaultName(sourceName, workspaceName) : sourceName;
+  const evaluated = {};
+  for (const [key, value] of Object.entries(resource)) {
+    evaluated[key] = key === "name" ? name3 : key === "dependsOn" ? scope.withResourceId(() => evaluateAt(scope, value, key)) : evaluateAt(scope, value, key);
+  }
+  const body = remapDefaultReferences(evaluated, workspaceName);
+  if (!Object.hasOwn(body, "dependsOn")) {
+    body["dependsOn"] = [];
+  }
+  const dependencies = body["dependsOn"];
+  if (!Array.isArray(dependencies)) {
+    throw new Error("dependsOn must be an array.");
+  }
+  const dependsOn = [];
+  dependencies.forEach((entry, index) => {
+    if (typeof entry !== "string") {
+      throw new Error(`dependsOn[${index}] must evaluate to a string, not ${jsonTypeName(entry)}.`);
+    }
+    const key = parseDependency(entry);
+    if (key !== "workspace" && !dependsOn.includes(key)) {
+      dependsOn.push(key);
+    }
+  });
+  if (kind2.id === "sparkJobDefinitions") {
+    const properties = body["properties"];
+    const jobProperties = isObject2(properties) ? properties["jobProperties"] : void 0;
+    const file = isObject2(jobProperties) ? jobProperties["file"] : void 0;
+    if (typeof file !== "string" || file === "") {
+      throw new Error(
+        "a Spark job definition needs properties.jobProperties.file; set the main file in Studio and re-export."
+      );
+    }
+  }
+  const artifact = {
+    key: artifactKey(kind2.id, name3),
+    kind: kind2,
+    name: name3,
+    type,
+    body,
+    dependsOn
+  };
+  if (serviceDefault) {
+    artifact.skip = SKIP_DEFAULT;
+  } else if (kind2.plane === "skip") {
+    artifact.skip = SKIP_INFRASTRUCTURE;
+  }
+  return artifact;
+}
+function evaluateTemplate(source) {
+  const parsed = parseJson(source.templateText, `Template ${source.templateFile ?? "file"}`);
+  if (!isObject2(parsed) || !Array.isArray(parsed["resources"])) {
+    throw new Error(
+      `Template ${source.templateFile ?? "file"} has no "resources" array; use the TemplateForWorkspace.json that the Synapse export writes.`
+    );
+  }
+  const scope = buildScope(source, parsed);
+  const artifacts = [];
+  const seen = /* @__PURE__ */ new Set();
+  const errors = [];
+  parsed["resources"].forEach((resource, index) => {
+    const info2 = {};
+    const labelFor = () => info2.name !== void 0 ? `resources[${index}] ${info2.name}` : isObject2(resource) && typeof resource["name"] === "string" ? `resources[${index}] ${resource["name"]}` : `resources[${index}]`;
+    try {
+      const artifact = buildArtifact(resource, scope, source.workspaceName, info2);
+      if (seen.has(artifact.key)) {
+        throw new Error(`${artifact.key} is defined twice; remove one of the resources.`);
+      }
+      seen.add(artifact.key);
+      artifacts.push(artifact);
+    } catch (error2) {
+      errors.push(`${labelFor()}: ${error2.message}`);
+    }
+  });
+  if (errors.length > 0) {
+    throw new Error(`The template cannot be used:
+- ${errors.join("\n- ")}`);
+  }
+  artifacts.forEach((artifact) => warnNonStringDefaults(artifact, scope.secrets));
+  return { artifacts };
+}
+async function loadTemplate(inputs) {
+  const read = async (file, what) => {
+    try {
+      return await readFile2(file, "utf8");
+    } catch (error2) {
+      throw new Error(
+        `Cannot read the ${what} ${file}: ${error2.message}. Check the path (relative to the workspace) and that the checkout step ran.`,
+        { cause: error2 }
+      );
+    }
+  };
+  const parameterFiles = [];
+  for (const name3 of inputs.parameterFiles) {
+    parameterFiles.push({ name: name3, text: await read(name3, "parameters file") });
+  }
+  return evaluateTemplate({
+    workspaceName: inputs.workspaceName,
+    templateText: await read(inputs.templateFile, "template file"),
+    templateFile: inputs.templateFile,
+    parameterFiles,
+    overrides: inputs.parameters
+  });
+}
+
+// src/deletion.ts
+var MAX_PAGES2 = 1e3;
+function referencesOf(value, found = /* @__PURE__ */ new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      referencesOf(item, found);
+    }
+  } else if (typeof value === "object" && value !== null) {
+    const record = value;
+    const { referenceName, type } = record;
+    if (typeof referenceName === "string" && typeof type === "string") {
+      const kind2 = kindForReferenceType(type);
+      if (kind2 !== void 0) {
+        found.add(artifactKey(kind2.id, referenceName));
+      }
+    }
+    for (const child of Object.values(record)) {
+      referencesOf(child, found);
+    }
+  }
+  return found;
+}
+async function listCollection(ctx, kind2, first) {
+  const start = `${ctx.dataPlane}/${kind2.collection}?api-version=${kind2.apiVersion}`;
+  const items = [];
+  const seen = /* @__PURE__ */ new Set([start]);
+  let res = first ?? await ctx.http.request("GET", start, ctx.scope);
+  for (let page = 1; ; page++) {
+    ensureSuccess(res);
+    const body = asRecord(res.json());
+    if (!Array.isArray(body?.value)) {
+      throw new Error(
+        `Listing ${kind2.collection} answered without a "value" array; check that the identity can read the workspace and re-run the job.`
+      );
+    }
+    for (const item of body.value) {
+      const record = asRecord(item);
+      if (record !== void 0) {
+        items.push(record);
+      }
+    }
+    const next = body.nextLink;
+    if (typeof next !== "string" || next === "") {
+      return items;
+    }
+    const url = sameOriginUrl(res.url, next);
+    if (seen.has(url) || page >= MAX_PAGES2) {
+      throw new Error(
+        `Listing ${kind2.collection} keeps returning nextLink pages (page ${page}); re-run the job, and report it if it persists.`
+      );
+    }
+    seen.add(url);
+    res = await ctx.http.request("GET", url, ctx.scope);
+  }
+}
+function liveFrom(kind2, item) {
+  const name3 = item.name;
+  if (typeof name3 !== "string" || name3 === "") {
+    throw new Error(
+      `Listing ${kind2.collection} returned an item without a name; re-run the job, and report it if it persists.`
+    );
+  }
+  return {
+    kind: kind2,
+    name: name3,
+    key: artifactKey(kind2.id, name3),
+    references: [...referencesOf(item)]
+  };
+}
+async function listLiveArtifacts(ctx, endpoints) {
+  const live = [];
+  for (const kind2 of KINDS) {
+    if (kind2.delete === "collection") {
+      for (const item of await listCollection(ctx, kind2)) {
+        live.push(liveFrom(kind2, item));
+      }
+    } else if (kind2.delete === "endpoint" && endpoints?.exists === true) {
+      for (const item of await listCollection(ctx, kind2, endpoints.response)) {
+        live.push(liveFrom(kind2, item));
+      }
+    } else if (kind2.delete === "lakedb") {
+      for (const name3 of await listLakeDatabases(ctx)) {
+        live.push({ kind: kind2, name: name3, key: artifactKey(kind2.id, name3), references: [] });
+      }
+    }
+  }
+  return live;
+}
+function planDeletions(live, template) {
+  const inTemplate = new Set(template.map((artifact) => artifact.key));
+  const artifacts = live.filter(
+    (artifact) => !isServiceDefault(artifact.kind.id, artifact.name) && !inTemplate.has(artifact.key)
+  );
+  const referrers = new Map(artifacts.map((artifact) => [artifact.key, []]));
+  for (const artifact of artifacts) {
+    for (const reference of artifact.references) {
+      if (reference !== artifact.key) {
+        referrers.get(reference)?.push(artifact.key);
+      }
+    }
+  }
+  const nodes = artifacts.map((artifact) => ({
+    key: artifact.key,
+    dependsOn: referrers.get(artifact.key) ?? []
+  }));
+  const cycle = findCycle(nodes);
+  if (cycle !== void 0) {
+    throw new Error(
+      `Cannot order the deletions: ${cycle.join(" -> ")} refer to one another. Delete one of them in Synapse Studio first, or put it back in the template.`
+    );
+  }
+  return { artifacts, nodes };
+}
+async function planLakeChildren(ctx, live, template) {
+  const definitions = new Map(
+    template.filter((artifact) => artifact.kind.id === "databases" && artifact.skip === void 0).map((artifact) => [artifact.key, artifact])
+  );
+  const relationships = [];
+  const tables = [];
+  for (const database of live) {
+    const definition = definitions.get(database.key);
+    if (database.kind.id !== "databases" || definition === void 0) {
+      continue;
+    }
+    const wanted = templateEntityNames(definition.body);
+    for (const [type, target] of [
+      ["relationships", relationships],
+      ["tables", tables]
+    ]) {
+      for (const child of await listLakeChildren(ctx, database.name, type)) {
+        if (!wanted.has(child.name.toLowerCase())) {
+          target.push(child);
+        }
+      }
+    }
+  }
+  return [...relationships, ...tables];
+}
+
+// src/report.ts
+import { appendFile as appendFile2 } from "node:fs/promises";
+var MAX_SUMMARY_ROWS = 1e3;
+var SECTION_TITLES = {
+  deploy: "Deploy",
+  skip: "Skipped",
+  delete: "Delete"
+};
+function logDeployed(label, ms) {
+  info(`deployed ${label} (${(ms / 1e3).toFixed(1)} s)`);
+}
+function logSkipped(label, reason) {
+  info(`skipped ${label} (${reason})`);
+}
+function logDeleted(label, ms) {
+  info(`deleted ${label} (${(ms / 1e3).toFixed(1)} s)`);
+}
+function logFailed(label, message) {
+  info(`failed ${label}: ${message}`);
+  error(message, { title: label });
+}
+function setOutputs(counts) {
+  setOutput("deployed", counts.deployed);
+  setOutput("skipped", counts.skipped);
+  setOutput("deleted", counts.deleted);
+}
+function cell(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|").replace(/`/g, "'").replace(/\r?\n/g, " ");
+}
+function summaryMarkdown(data) {
+  const { counts } = data;
+  const lines = [
+    `## Synapse deploy${data.dryRun ? " (dry run)" : ""}`,
+    "",
+    data.dryRun ? `Would deploy ${counts.deployed}, skip ${counts.skipped} and delete ${counts.deleted}.` : `Deployed ${counts.deployed}, skipped ${counts.skipped} and deleted ${counts.deleted}.`,
+    ""
+  ];
+  if (data.verdict) {
+    lines.push(`**${cell(data.verdict)}**`, "");
+  }
+  let remaining = MAX_SUMMARY_ROWS;
+  let trimmed = 0;
+  for (const section of ["deploy", "skip", "delete"]) {
+    const rows = data.rows.filter((row) => row.section === section);
+    if (rows.length === 0) {
+      continue;
+    }
+    const shown = rows.slice(0, Math.max(remaining, 0));
+    remaining -= shown.length;
+    trimmed += rows.length - shown.length;
+    lines.push(`### ${SECTION_TITLES[section]} (${rows.length})`, "");
+    lines.push("| Artifact | Outcome | Detail |", "| --- | --- | --- |");
+    for (const row of shown) {
+      lines.push(`| ${cell(row.artifact)} | ${cell(row.outcome)} | ${cell(row.detail)} |`);
+    }
+    lines.push("");
+  }
+  if (trimmed > 0) {
+    lines.push(`${trimmed} more row(s) are not shown; the job log has every artifact.`, "");
+  }
+  return lines.join("\n");
+}
+async function writeSummary(data) {
+  const file = process.env["GITHUB_STEP_SUMMARY"];
+  if (!file) {
+    debug("GITHUB_STEP_SUMMARY is not set; the job summary is skipped");
+    return;
+  }
+  try {
+    await appendFile2(file, summaryMarkdown(data) + "\n");
+  } catch (error2) {
+    warning(`Could not write the job summary: ${error2.message}`);
+  }
+}
+
+// src/synapse.ts
+var ENDPOINT_OPERATION_BASE = "/managedVirtualNetworks/default";
+var TRIGGER_ENABLED = /TriggerEnabledCannotUpdate|enabled trigger|disabled first|started/i;
+var TRIGGER_HINT = "Stop the trigger first; the deployer does not start or stop triggers.";
+var PRIVATE_LINK_SERVICE = "/providers/microsoft.network/privatelinkservices/";
+var NO_MANAGED_VNET = "does not have a managed virtual network associated";
+function describe(kind2, name3) {
+  return `${kind2.collection}/${name3}`;
+}
+function withTriggerHint(kind2, err) {
+  if (kind2.id !== "triggers" || !(err instanceof HttpError) || !TRIGGER_ENABLED.test(err.serviceMessage)) {
+    return err;
+  }
+  const message = `${err.message} ${TRIGGER_HINT}`;
+  return new HttpError(message, err.status, err.serviceMessage, err);
+}
+function prepareEndpointBody(body) {
+  const copy = structuredClone(body);
+  const properties = asRecord(asRecord(copy)?.properties);
+  if (properties === void 0) {
+    return copy;
+  }
+  const target = properties.privateLinkResourceId;
+  const isPrivateLinkService = typeof target === "string" && target.toLowerCase().includes(PRIVATE_LINK_SERVICE);
+  if (!isPrivateLinkService) {
+    delete properties.fqdns;
+  }
+  return copy;
+}
+async function deployArtifact(ctx, kind2, name3, body) {
+  const label = describe(kind2, name3);
+  try {
+    switch (kind2.plane) {
+      case "data": {
+        const put = await ctx.http.request(
+          "PUT",
+          ctx.dataPlane + artifactPath(kind2, name3),
+          ctx.scope,
+          body
+        );
+        await awaitDataPlaneDeploy(ctx, put, { scope: ctx.scope, label, name: name3 });
+        return;
+      }
+      case "endpoint": {
+        const put = await ctx.http.request(
+          "PUT",
+          ctx.dataPlane + artifactPath(kind2, name3),
+          ctx.scope,
+          prepareEndpointBody(body)
+        );
+        await awaitEndpointDeploy(ctx, put, {
+          scope: ctx.scope,
+          label,
+          name: name3,
+          operationBase: ENDPOINT_OPERATION_BASE
+        });
+        return;
+      }
+      case "lakedb":
+        await deployLakeDatabase(ctx, name3, body);
+        return;
+      case "arm":
+        throw new Error(
+          `${label} is deployed through Azure Resource Manager; use deployIntegrationRuntime.`
+        );
+      case "skip":
+        throw new Error(`${label} is left to infrastructure as code and is never deployed.`);
+    }
+  } catch (err) {
+    throw withTriggerHint(kind2, err);
+  }
+}
+async function deleteArtifact(ctx, kind2, name3) {
+  const label = describe(kind2, name3);
+  if (kind2.delete === "never") {
+    throw new Error(`${label} is never deleted by the deployer.`);
+  }
+  try {
+    const del = await ctx.http.request(
+      "DELETE",
+      ctx.dataPlane + artifactPath(kind2, name3),
+      ctx.scope
+    );
+    await awaitDelete(ctx, del, { scope: ctx.scope, label });
+  } catch (err) {
+    throw withTriggerHint(kind2, err);
+  }
+}
+async function hasManagedVirtualNetwork(ctx) {
+  const response = await ctx.http.request(
+    "GET",
+    `${ctx.dataPlane}/managedVirtualNetworks/default/managedPrivateEndpoints?api-version=${DEFAULT_API_VERSION}`,
+    ctx.scope
+  );
+  if (response.status >= 200 && response.status < 300) {
+    return { exists: true, response };
+  }
+  if (response.text.toLowerCase().includes(NO_MANAGED_VNET)) {
+    debug("The workspace has no managed virtual network");
+    return { exists: false, response };
+  }
+  throw responseError(response);
 }
 
 // src/run.ts
@@ -43395,34 +45301,325 @@ function defaultDeps(inputs) {
     now: Date.now
   };
 }
-function run(inputs, _deps) {
-  return Promise.reject(
-    new Error(
-      `not implemented yet: the inputs for workspace ${inputs.workspaceName} are valid, but this rewrite cannot deploy anything until v1.0.0 is released. Do not use this version of the action yet.`
-    )
+var SKIP_ENDPOINTS = "managed private endpoints are not deployed (deploy-managed-private-endpoints is false)";
+async function group(name3, work) {
+  startGroup(name3);
+  try {
+    return await work();
+  } finally {
+    endGroup();
+  }
+}
+function labelOf(artifact) {
+  return `${artifact.kind.id}/${artifact.name}`;
+}
+function list(labels) {
+  const shown = labels.slice(0, 10).join(", ");
+  return labels.length > 10 ? `${shown}, and ${labels.length - 10} more` : shown;
+}
+function seconds(ms) {
+  return `${(ms / 1e3).toFixed(1)} s`;
+}
+function messageOf(error2) {
+  return error2 instanceof Error ? error2.message : String(error2);
+}
+async function inspectWorkspace(inputs, synapse, artifacts) {
+  if (!inputs.deployManagedPrivateEndpoints) {
+    return void 0;
+  }
+  const probe = await hasManagedVirtualNetwork(synapse);
+  if (!probe.exists) {
+    const endpoints = artifacts.filter(
+      (artifact) => artifact.kind.id === "managedPrivateEndpoints" && artifact.skip === void 0
+    );
+    if (endpoints.length > 0) {
+      throw new Error(
+        `deploy-managed-private-endpoints is true, but workspace ${inputs.workspaceName} has no managed virtual network, so the template's managed private endpoints (${list(endpoints.map(labelOf))}) cannot be deployed. Set it to false, or deploy to a workspace with a managed virtual network.`
+      );
+    }
+    info(
+      `workspace ${inputs.workspaceName} has no managed virtual network: no endpoints to deploy or delete`
+    );
+  }
+  return probe;
+}
+function childKey(child) {
+  return `${child.type}:${child.database.toLowerCase()}/${child.name.toLowerCase()}`;
+}
+function childNodes(children) {
+  return children.map((child) => ({
+    key: childKey(child),
+    dependsOn: child.type === "tables" ? children.filter((other) => other.type === "relationships" && other.database === child.database).map(childKey) : []
+  }));
+}
+async function run(inputs, deps) {
+  const all = await group("Template", async () => {
+    const { artifacts } = await loadTemplate(inputs);
+    const prepared = artifacts.map(
+      (artifact) => artifact.skip === void 0 && artifact.kind.id === "managedPrivateEndpoints" && !inputs.deployManagedPrivateEndpoints ? { ...artifact, skip: SKIP_ENDPOINTS } : artifact
+    );
+    const runtimes = prepared.filter(
+      (artifact) => artifact.kind.plane === "arm" && artifact.skip === void 0
+    );
+    if (runtimes.length > 0 && (!inputs.subscriptionId || !inputs.resourceGroup)) {
+      throw new Error(
+        `The template has integration runtimes (${list(runtimes.map(labelOf))}), which are deployed through Azure Resource Manager: set the subscription-id and resource-group inputs.`
+      );
+    }
+    info(`${prepared.length} resource(s) in ${inputs.templateFile}`);
+    return prepared;
+  });
+  const deployable = all.filter((artifact) => artifact.skip === void 0);
+  const nodes = buildGraph(all, deployable);
+  const byKey = new Map(deployable.map((artifact) => [artifact.key, artifact]));
+  const labelFor = (key) => {
+    const artifact = byKey.get(key);
+    return artifact === void 0 ? key : labelOf(artifact);
+  };
+  const lro = { http: deps.http, sleep: deps.sleep, now: deps.now };
+  const dataScope = dataPlaneScope(inputs.cloud);
+  const synapse = { ...lro, dataPlane: deps.endpoints.dataPlane, scope: dataScope };
+  const needsArm = deployable.some((artifact) => artifact.kind.plane === "arm");
+  await group("Sign in", async () => {
+    await deps.tokens.getToken(dataScope);
+    if (needsArm) {
+      await deps.tokens.getToken(armScope(inputs.cloud));
+    }
+    info(`signed in to ${new URL(deps.endpoints.dataPlane).host}`);
+  });
+  const plan = await group("Workspace", async () => {
+    const probe = await inspectWorkspace(inputs, synapse, all);
+    if (!inputs.deleteArtifacts) {
+      return { deletions: [], deletionNodes: [], children: [] };
+    }
+    const live = await listLiveArtifacts(synapse, probe);
+    const { artifacts, nodes: deletionNodes } = planDeletions(live, all);
+    const children = await planLakeChildren(synapse, live, all);
+    info(`${live.length} artifact(s) in the workspace`);
+    return { deletions: artifacts, deletionNodes, children };
+  });
+  const rows = [];
+  const counts = { deployed: 0, skipped: 0, deleted: 0 };
+  const verb = inputs.dryRun ? "would " : "";
+  await group("Plan", () => {
+    for (const artifact of all) {
+      if (artifact.skip !== void 0) {
+        logSkipped(labelOf(artifact), artifact.skip);
+        rows.push({
+          section: "skip",
+          artifact: labelOf(artifact),
+          outcome: "skipped",
+          detail: artifact.skip
+        });
+        counts.skipped++;
+      }
+    }
+    info(
+      `${verb}deploy ${deployable.length}, skip ${counts.skipped}, delete ${plan.deletions.length}` + (plan.children.length > 0 ? ` (and ${plan.children.length} lake database table(s) or relationship(s))` : "")
+    );
+    for (const artifact of deployable) {
+      info(`${verb}deploy ${labelOf(artifact)}`);
+    }
+    for (const artifact of plan.deletions) {
+      info(`${verb}delete ${labelOf(artifact)}`);
+    }
+    for (const child of plan.children) {
+      info(`${verb}delete ${describeLakeChild(child)}`);
+    }
+  });
+  if (inputs.dryRun) {
+    counts.deployed = deployable.length;
+    counts.deleted = plan.deletions.length;
+    for (const artifact of deployable) {
+      rows.push({
+        section: "deploy",
+        artifact: labelOf(artifact),
+        outcome: "would deploy",
+        detail: ""
+      });
+    }
+    for (const artifact of plan.deletions) {
+      rows.push({
+        section: "delete",
+        artifact: labelOf(artifact),
+        outcome: "would delete",
+        detail: ""
+      });
+    }
+    for (const child of plan.children) {
+      rows.push({
+        section: "delete",
+        artifact: describeLakeChild(child),
+        outcome: "would delete",
+        detail: ""
+      });
+    }
+    setOutputs(counts);
+    await writeSummary({ dryRun: true, verdict: "", counts, rows });
+    info("dry run: nothing was changed");
+    return counts;
+  }
+  const problems = [];
+  const deployed = await group(
+    `Deploy (${deployable.length})`,
+    () => schedule(nodes, async (key) => {
+      const artifact = byKey.get(key);
+      if (artifact === void 0) {
+        throw new Error(`internal error: ${key} is not a deployable artifact`);
+      }
+      const label = labelOf(artifact);
+      const started = deps.now();
+      try {
+        if (artifact.kind.plane === "arm") {
+          await deployIntegrationRuntime(
+            {
+              ...lro,
+              arm: deps.endpoints.arm,
+              scope: armScope(inputs.cloud),
+              subscriptionId: inputs.subscriptionId,
+              resourceGroup: inputs.resourceGroup,
+              workspace: inputs.workspaceName
+            },
+            artifact.name,
+            artifact.body
+          );
+        } else {
+          await deployArtifact(synapse, artifact.kind, artifact.name, artifact.body);
+        }
+      } catch (error2) {
+        logFailed(label, messageOf(error2));
+        rows.push({
+          section: "deploy",
+          artifact: label,
+          outcome: "failed",
+          detail: messageOf(error2)
+        });
+        throw error2;
+      }
+      const elapsed = deps.now() - started;
+      logDeployed(label, elapsed);
+      rows.push({
+        section: "deploy",
+        artifact: label,
+        outcome: "deployed",
+        detail: seconds(elapsed)
+      });
+      counts.deployed++;
+    })
   );
+  if (deployed.failed.length > 0 || deployed.notStarted.length > 0) {
+    for (const key of deployed.notStarted) {
+      rows.push({
+        section: "deploy",
+        artifact: labelFor(key),
+        outcome: "not started",
+        detail: "an earlier deployment failed"
+      });
+    }
+    problems.push(
+      `Deployed ${counts.deployed} of ${deployable.length}; ${deployed.failed.length} failed (${list(deployed.failed.map(({ key }) => labelFor(key)))}); ${deployed.notStarted.length} not started.` + (inputs.deleteArtifacts ? " Deletion skipped because deployment failed." : "")
+    );
+  }
+  if (problems.length === 0 && inputs.deleteArtifacts) {
+    const total = plan.deletions.length + plan.children.length;
+    const byLiveKey = new Map(plan.deletions.map((artifact) => [artifact.key, artifact]));
+    const childByKey = new Map(plan.children.map((child) => [childKey(child), child]));
+    const failedDeletes = [];
+    let attempted = 0;
+    await group(`Delete (${total})`, async () => {
+      const removed = await schedule(plan.deletionNodes, async (key) => {
+        const artifact = byLiveKey.get(key);
+        if (artifact === void 0) {
+          throw new Error(`internal error: ${key} is not a deletion candidate`);
+        }
+        const label = labelOf(artifact);
+        const started = deps.now();
+        try {
+          await deleteArtifact(synapse, artifact.kind, artifact.name);
+        } catch (error2) {
+          logFailed(label, messageOf(error2));
+          rows.push({
+            section: "delete",
+            artifact: label,
+            outcome: "failed",
+            detail: messageOf(error2)
+          });
+          failedDeletes.push(label);
+          throw error2;
+        }
+        const elapsed = deps.now() - started;
+        logDeleted(label, elapsed);
+        rows.push({
+          section: "delete",
+          artifact: label,
+          outcome: "deleted",
+          detail: seconds(elapsed)
+        });
+        counts.deleted++;
+      });
+      attempted += removed.succeeded.length + removed.failed.length;
+      if (removed.failed.length > 0) {
+        return;
+      }
+      const emptied = await schedule(childNodes(plan.children), async (key) => {
+        const child = childByKey.get(key);
+        if (child === void 0) {
+          throw new Error(`internal error: ${key} is not a lake database child`);
+        }
+        const label = describeLakeChild(child);
+        const started = deps.now();
+        try {
+          await deleteLakeChild(synapse, child);
+        } catch (error2) {
+          logFailed(label, messageOf(error2));
+          rows.push({
+            section: "delete",
+            artifact: label,
+            outcome: "failed",
+            detail: messageOf(error2)
+          });
+          failedDeletes.push(label);
+          throw error2;
+        }
+        const elapsed = deps.now() - started;
+        logDeleted(label, elapsed);
+        rows.push({
+          section: "delete",
+          artifact: label,
+          outcome: "deleted",
+          detail: seconds(elapsed)
+        });
+      });
+      attempted += emptied.succeeded.length + emptied.failed.length;
+    });
+    if (failedDeletes.length > 0 || attempted < total) {
+      problems.push(
+        `Deletion failed: ${failedDeletes.length} of ${total} failed (${list(failedDeletes)}); ${total - attempted} not started.`
+      );
+    }
+  }
+  setOutputs(counts);
+  const verdict = problems.join(" ");
+  await writeSummary({ dryRun: false, verdict, counts, rows });
+  if (verdict) {
+    throw new Error(verdict);
+  }
+  info(`deployed ${counts.deployed}, skipped ${counts.skipped}, deleted ${counts.deleted}`);
+  return counts;
 }
 
 // src/main.ts
 process.setSourceMapsEnabled(true);
-var settled = false;
-guardAgainstSilentExit(
+await runGuarded(
   process,
-  () => settled,
+  async () => {
+    const inputs = readInputs();
+    await run(inputs, defaultDeps(inputs));
+  },
   (message) => {
     setFailed(message);
   }
 );
-try {
-  const inputs = readInputs();
-  await run(inputs, defaultDeps(inputs));
-  settled = true;
-  process.exit(0);
-} catch (err) {
-  settled = true;
-  setFailed(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-}
 /*! Bundled license information:
 
 undici/lib/web/fetch/body.js:

@@ -39,6 +39,32 @@ run_case() {
 oidc=("INPUT_CLIENT-ID=${ZERO_GUID}" "INPUT_TENANT-ID=${ZERO_GUID}")
 base=("INPUT_WORKSPACE-NAME=myworkspace" "INPUT_TEMPLATE-FILE=TemplateForWorkspace.json")
 
+# Templates for the cases that get past input validation. Nothing here needs
+# a network: each case must fail before (or, for sign-in, without) any request.
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+write_template() {
+  local file="$1" value="$2"
+  cat >"$file" <<JSON
+{
+  "parameters": {"workspaceName": {"type": "string"}},
+  "variables": {"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"},
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/nb_example')]",
+      "type": "Microsoft.Synapse/workspaces/notebooks",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {"description": "${value}"},
+      "dependsOn": []
+    }
+  ]
+}
+JSON
+}
+write_template "$work/good.json" "plain text"
+write_template "$work/bad-expression.json" "[concat('a', string(1))]"
+sed 's#/notebooks"#/integrationRuntimes"#; s#/nb_example#/ir_example#' "$work/good.json" >"$work/runtime.json"
+
 run_case "missing workspace-name" "workspace-name is required"
 run_case "missing template-file" "template-file is required" \
   "INPUT_WORKSPACE-NAME=myworkspace"
@@ -56,10 +82,14 @@ run_case "bad parameters line" "line 2: expected name=value" \
   "${base[@]}" "${oidc[@]}" $'INPUT_PARAMETERS=a=1\nnot-a-pair'
 run_case "bad workspace-name" "workspace-name .*is not a valid workspace name" \
   "INPUT_WORKSPACE-NAME=evil.example/x" "INPUT_TEMPLATE-FILE=t.json" "${oidc[@]}"
-run_case "valid inputs reach the stub" "not implemented yet" \
+run_case "missing template file" "Cannot read the template file" \
   "${base[@]}" "${oidc[@]}"
-run_case "managed identity reaches the stub" "not implemented yet" \
-  "${base[@]}" "INPUT_AUTH=managed-identity"
+run_case "unsupported expression fails while reading the template" "string\\(1\\)" \
+  "INPUT_WORKSPACE-NAME=myworkspace" "INPUT_TEMPLATE-FILE=${work}/bad-expression.json" "${oidc[@]}"
+run_case "oidc without a runner fails at sign-in with the permission hint" "id-token: write" \
+  "INPUT_WORKSPACE-NAME=myworkspace" "INPUT_TEMPLATE-FILE=${work}/good.json" "${oidc[@]}"
+run_case "integration runtimes need the subscription" "subscription-id and resource-group" \
+  "INPUT_WORKSPACE-NAME=myworkspace" "INPUT_TEMPLATE-FILE=${work}/runtime.json" "${oidc[@]}"
 
 # The client secret may only appear in the runner's own mask command.
 log_info "Case: client secret is never echoed"
