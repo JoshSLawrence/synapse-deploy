@@ -1,0 +1,116 @@
+[
+  {
+    "name": "pl_target",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "pl_target",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "parameters": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "tr_schedule",
+    "type": "Microsoft.Synapse/workspaces/triggers",
+    "isDefault": false,
+    "content": {
+      "name": "tr_schedule",
+      "type": "Microsoft.Synapse/workspaces/triggers",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "runtimeState": "Stopped",
+        "pipelines": [
+          {
+            "pipelineReference": {
+              "referenceName": "pl_target",
+              "type": "PipelineReference"
+            },
+            "parameters": {
+              "path": "\\\\host\\share\\dir"
+            }
+          }
+        ],
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "[parameters('p_start')]",
+            "timeZone": "UTC"
+          }
+        },
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/pipelines/pl_target"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/pipelines/pl_target"
+    ],
+    "batch": 0
+  },
+  {
+    "name": "tr_blob",
+    "type": "Microsoft.Synapse/workspaces/triggers",
+    "isDefault": false,
+    "content": {
+      "name": "tr_blob",
+      "type": "Microsoft.Synapse/workspaces/triggers",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "runtimeState": "Stopped",
+        "pipelines": [
+          {
+            "pipelineReference": {
+              "referenceName": "pl_target",
+              "type": "PipelineReference"
+            },
+            "parameters": {
+              "path": "\\\\host\\share\\in"
+            }
+          }
+        ],
+        "type": "BlobEventsTrigger",
+        "typeProperties": {
+          "blobPathBeginsWith": "/data/blobs/in",
+          "ignoreEmptyBlobs": true,
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stexample",
+          "events": [
+            "Microsoft.Storage.BlobCreated"
+          ]
+        },
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/pipelines/pl_target"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/pipelines/pl_target"
+    ],
+    "batch": 0
+  }
+]

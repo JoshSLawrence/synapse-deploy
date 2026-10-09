@@ -1,0 +1,12 @@
+{
+	"name": "sql_probe",
+	"properties": {
+		"content": {
+			"query": "SELECT [name] FROM [dbo].[t] WHERE note = 'it''s [x]'",
+			"metadata": { "language": "sql" },
+			"currentConnection": { "databaseName": "master", "poolName": "Built-in" },
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

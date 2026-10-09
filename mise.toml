@@ -1,0 +1,30 @@
+[tools]
+node = "24.21.0"
+pre-commit = "4.6.2"
+actionlint = "1.7.12"
+zizmor = "1.30.1"
+markdownlint-cli2 = "0.23.3"
+
+[tasks.build]
+description = "Bundle src/main.ts into dist/index.js"
+run = "node scripts/build.mjs"
+
+[tasks.test]
+description = "Run the unit tests"
+run = 'node --test "test/**/*.test.ts"'
+
+[tasks.typecheck]
+description = "Type-check the sources and tests"
+run = "npx --no-install tsc --noEmit"
+
+[tasks.lint]
+description = "Run every pre-commit hook on all files"
+run = "pre-commit run --all-files"
+
+[tasks.check-dist]
+description = "Rebuild and fail if dist/ differs from what is committed"
+run = ".github/scripts/check-dist.sh"
+
+[tasks.smoke]
+description = "Run the built action with no network"
+run = ".github/scripts/smoke.sh"

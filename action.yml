@@ -1,0 +1,94 @@
+name: Synapse deploy
+description: >-
+  Deploy Azure Synapse workspace artifacts (pipelines, notebooks, linked
+  services, ...) from an exported workspace template, through the
+  workspace's development endpoint.
+author: Josh Lawrence
+branding:
+  icon: upload-cloud
+  color: blue
+inputs:
+  workspace-name:
+    description: >-
+      Target workspace. Overrides the template's workspaceName parameter.
+    required: true
+  template-file:
+    description: The exported TemplateForWorkspace.json.
+    required: true
+  parameters-file:
+    description: >-
+      ARM parameters files (TemplateParametersForWorkspace.json or your
+      own), space- or newline-separated (so paths can't contain spaces);
+      later files win.
+    required: false
+    default: ""
+  parameters:
+    description: >-
+      name=value lines, applied after the files. Typed by the template's
+      parameter type; object and array values are JSON.
+    required: false
+    default: ""
+  cloud:
+    description: AzureCloud, AzureChinaCloud or AzureUSGovernment.
+    required: false
+    default: AzureCloud
+  auth:
+    description: oidc (GitHub OIDC), client-secret or managed-identity.
+    required: false
+    default: oidc
+  client-id:
+    description: >-
+      Client ID of the app registration (oidc, client-secret), or of a
+      user-assigned managed identity (empty: the system-assigned one).
+    required: false
+    default: ""
+  tenant-id:
+    description: Tenant ID (oidc, client-secret).
+    required: false
+    default: ""
+  client-secret:
+    description: Client secret (client-secret). Store it as a secret.
+    required: false
+    default: ""
+  subscription-id:
+    description: >-
+      Subscription of the workspace. Needed only to deploy integration
+      runtimes.
+    required: false
+    default: ""
+  resource-group:
+    description: >-
+      Resource group of the workspace. Needed only to deploy integration
+      runtimes.
+    required: false
+    default: ""
+  delete-artifacts:
+    description: >-
+      Delete artifacts that are in the workspace but not in the template.
+      Never deletes integration runtimes, pools, the managed virtual
+      network or the workspace's own defaults.
+    required: false
+    default: "false"
+  deploy-managed-private-endpoints:
+    description: >-
+      Deploy the template's managed private endpoints. When false they
+      are neither deployed nor deleted. When true with delete-artifacts,
+      endpoints not in the template are deleted (not synapse-ws-*).
+    required: false
+    default: "false"
+  dry-run:
+    description: >-
+      Sign in, read the template and the workspace, and report what would
+      be deployed and deleted, without changing anything.
+    required: false
+    default: "false"
+outputs:
+  deployed:
+    description: Number of artifacts deployed (would be, in a dry run).
+  skipped:
+    description: Number of template resources skipped (defaults, pools, ...).
+  deleted:
+    description: Number of artifacts deleted (would be, in a dry run).
+runs:
+  using: node24
+  main: dist/index.js

@@ -1,0 +1,36 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      npm:
+        patterns:
+          - "*"
+    ignore:
+      # typescript-eslint does not support TypeScript 7 (the Go port) yet.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      # Match the runtime (Node 24), not the newest Node.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: ci

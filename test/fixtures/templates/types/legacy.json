@@ -1,0 +1,35 @@
+[
+  {
+    "name": "ls_types",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": false,
+    "content": {
+      "name": "ls_types",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": 45,
+          "count": 7,
+          "flag": true,
+          "settings": {
+            "a": 1,
+            "b": "x"
+          },
+          "items": [
+            1,
+            2
+          ],
+          "secret": "",
+          "digits": "007",
+          "fallback": "[parameters('p_default_only')]"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  }
+]

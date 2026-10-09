@@ -1,0 +1,147 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    },
+    "myworkspace-WorkspaceDefaultStorage_properties_typeProperties_url": {
+      "type": "string",
+      "defaultValue": "https://stexample.dfs.core.windows.net"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/pl_probe')]",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {}
+        },
+        "parameters": {
+          "p_array_text": {
+            "type": "string",
+            "defaultValue": [
+              1,
+              2,
+              3
+            ]
+          },
+          "p_bracket": {
+            "type": "string",
+            "defaultValue": "[x]"
+          },
+          "p_double": {
+            "type": "string",
+            "defaultValue": "[[x]"
+          },
+          "p_sql": {
+            "type": "string",
+            "defaultValue": "[dbo].[t]"
+          },
+          "p_apostrophe": {
+            "type": "string",
+            "defaultValue": "it's"
+          },
+          "p_backslash": {
+            "type": "string",
+            "defaultValue": "C:\\temp\\file.txt"
+          },
+          "p_number_text": {
+            "type": "string",
+            "defaultValue": "45.0"
+          }
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/myworkspace-WorkspaceDefaultStorage')]",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "annotations": [],
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[parameters('myworkspace-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+        }
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/sql_probe')]",
+      "type": "Microsoft.Synapse/workspaces/sqlscripts",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "content": {
+          "query": "SELECT [name] FROM [dbo].[t] WHERE note = 'it''s [x]'",
+          "metadata": {
+            "language": "sql"
+          },
+          "currentConnection": {
+            "databaseName": "master",
+            "poolName": "Built-in"
+          },
+          "resultLimit": 5000
+        },
+        "type": "SqlQuery"
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/lakedb_example')]",
+      "type": "Microsoft.Synapse/workspaces/databases",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "Ddls": [
+          {
+            "ActionType": "CREATE",
+            "OldEntity": null,
+            "NewEntity": {
+              "Name": "lakedb_example",
+              "EntityType": "DATABASE",
+              "Origin": {
+                "Type": "SPARK"
+              },
+              "Properties": {
+                "IsSyMSCDMDatabase": true
+              },
+              "Source": {
+                "Provider": "ADLS",
+                "Location": "abfss://data@stexample.dfs.core.windows.net/lakedb_example",
+                "Properties": {
+                  "FormatType": "csv",
+                  "LinkedServiceName": "myworkspace-WorkspaceDefaultStorage"
+                }
+              },
+              "PublishStatus": "PUBLISHED",
+              "ObjectVersion": 1,
+              "ObjectId": "00000000-0000-0000-0000-000000000000"
+            },
+            "Source": {
+              "Type": "SPARK"
+            }
+          }
+        ]
+      },
+      "dependsOn": []
+    }
+  ]
+}

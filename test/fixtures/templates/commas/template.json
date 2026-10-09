@@ -1,0 +1,77 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    },
+    "p_host": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]",
+    "conn": "[concat('Server=', parameters('p_host'), ',1433;Database=db')]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/ls_commas')]",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureSqlDatabase",
+        "typeProperties": {
+          "connectionString": "[concat('Server=tcp:', parameters('p_host'), ',1433;Initial Catalog=db')]",
+          "fromVariable": "[variables('conn')]",
+          "lit": "[concat('a, b', ' | ', 'it''s, ok')]"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/pl_commas')]",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "description": "[concat('one, two', ', ', 'three')]"
+      },
+      "dependsOn": [
+        "[concat(variables('workspaceId'), '/linkedServices/ls_commas')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/a, b')]",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": []
+      },
+      "dependsOn": []
+    }
+  ]
+}

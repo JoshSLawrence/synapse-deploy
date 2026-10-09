@@ -1,0 +1,62 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    },
+    "p_x": {
+      "type": "string",
+      "defaultValue": "xval"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/nb_literal')]",
+      "type": "Microsoft.Synapse/workspaces/notebooks",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "nbformat": 4,
+        "nbformat_minor": 2,
+        "metadata": {
+          "language_info": {
+            "name": "python"
+          }
+        },
+        "cells": [
+          {
+            "cell_type": "code",
+            "metadata": {},
+            "source": [
+              "name = parameters('workspaceName')\n",
+              "wid = variables('workspaceId')\n",
+              "print(parameters('p_x'))\n"
+            ],
+            "outputs": [],
+            "execution_count": null
+          }
+        ]
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/sql_literal')]",
+      "type": "Microsoft.Synapse/workspaces/sqlscripts",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "content": {
+          "query": "-- parameters('workspaceName') and variables('workspaceId')\nSELECT 'parameters(''p_x'')'",
+          "metadata": {
+            "language": "sql"
+          }
+        },
+        "type": "SqlQuery"
+      },
+      "dependsOn": []
+    }
+  ]
+}

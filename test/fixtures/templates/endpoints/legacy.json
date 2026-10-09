@@ -1,0 +1,95 @@
+[
+  {
+    "name": "pe_storage",
+    "type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+    "isDefault": false,
+    "content": {
+      "name": "pe_storage",
+      "type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "privateLinkResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stexample",
+        "groupId": "dfs",
+        "fqdns": [
+          "stexample.dfs.core.windows.net"
+        ]
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default"
+    ],
+    "batch": 0
+  },
+  {
+    "name": "pe_pls",
+    "type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+    "isDefault": false,
+    "content": {
+      "name": "pe_pls",
+      "type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "privateLinkResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateLinkServices/pls-example",
+        "groupId": "",
+        "fqdns": [
+          "service.contoso.example"
+        ]
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default"
+    ],
+    "batch": 0
+  },
+  {
+    "name": "myworkspace-synapse-ws-sql--devws",
+    "type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+    "isDefault": true,
+    "content": {
+      "name": "synapse-ws-sql--devws",
+      "type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "privateLinkResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/devws",
+        "groupId": "sql"
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default"
+    ],
+    "batch": 0
+  },
+  {
+    "name": "ls_after_pe",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": false,
+    "content": {
+      "name": "ls_after_pe",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "https://stexample.dfs.core.windows.net"
+        },
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default/managedPrivateEndpoints/pe_storage"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/managedVirtualNetworks/default/managedPrivateEndpoints/pe_storage"
+    ],
+    "batch": 0
+  }
+]

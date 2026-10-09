@@ -1,0 +1,59 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    },
+    "p_env": {
+      "type": "string",
+      "defaultValue": "dev"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]",
+    "a": "[concat('x-', parameters('workspaceName'))]",
+    "b": "[concat(variables('a'), '-y')]",
+    "c": "[concat(variables('b'), '/', parameters('p_env'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/ls_vars')]",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[variables('c')]",
+          "other": "[variables('b')]"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/pl_vars')]",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "description": "[concat(variables('a'), '|', variables('workspaceId'))]"
+      },
+      "dependsOn": [
+        "[concat(variables('workspaceId'), '/linkedServices/ls_vars')]"
+      ]
+    }
+  ]
+}

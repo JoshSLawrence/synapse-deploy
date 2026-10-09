@@ -1,0 +1,46 @@
+{
+  "name": "synapse-deploy",
+  "version": "0.0.0",
+  "description": "GitHub Action that deploys Azure Synapse workspace artifacts from an exported workspace template.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoshSLawrence/synapse-deploy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JoshSLawrence/synapse-deploy/issues"
+  },
+  "homepage": "https://github.com/JoshSLawrence/synapse-deploy#readme",
+  "author": "Josh Lawrence",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check-dist": ".github/scripts/check-dist.sh",
+    "format": "prettier --write .",
+    "lint": "pre-commit run --all-files",
+    "smoke": ".github/scripts/smoke.sh",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/http-client": "^4.0.1",
+    "@azure/identity": "^4.13.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
+    "eslint": "^10.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

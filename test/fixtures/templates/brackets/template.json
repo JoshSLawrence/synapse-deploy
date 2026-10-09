@@ -1,0 +1,79 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    },
+    "p_sql": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/pl_brackets')]",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "parameters": {
+          "a": {
+            "type": "string",
+            "defaultValue": "[1, 2, 3]"
+          },
+          "b": {
+            "type": "string",
+            "defaultValue": "[dbo].[t]"
+          },
+          "c": {
+            "type": "string",
+            "defaultValue": "[[x]"
+          },
+          "d": {
+            "type": "string",
+            "defaultValue": "[x for x in y]"
+          },
+          "e": {
+            "type": "string",
+            "defaultValue": "[x]"
+          },
+          "f": {
+            "type": "string",
+            "defaultValue": "[parameters('p_sql')]"
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/sql_brackets')]",
+      "type": "Microsoft.Synapse/workspaces/sqlscripts",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "content": {
+          "query": "SELECT [name] FROM [dbo].[t] WHERE note = 'it''s [x]'",
+          "metadata": {
+            "language": "sql"
+          }
+        },
+        "type": "SqlQuery"
+      },
+      "dependsOn": []
+    }
+  ]
+}

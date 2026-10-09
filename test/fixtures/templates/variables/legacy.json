@@ -1,0 +1,55 @@
+[
+  {
+    "name": "ls_vars",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": false,
+    "content": {
+      "name": "ls_vars",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[variables('b')/test]",
+          "other": "[variables('a')-y]"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "pl_vars",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "pl_vars",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "description": "x-myworkspace|Microsoft.Synapse/workspaces/myworkspace"
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/linkedServices/ls_vars"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/linkedServices/ls_vars"
+    ],
+    "batch": 0
+  }
+]

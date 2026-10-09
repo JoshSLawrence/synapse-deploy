@@ -1,0 +1,68 @@
+[
+  {
+    "name": "ls_paths",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": false,
+    "content": {
+      "name": "ls_paths",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "FileServer",
+        "typeProperties": {
+          "host": "\\\\fileserver\\share\\dir",
+          "userId": "contoso\\svc"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "pl_paths",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "pl_paths",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "parameters": {
+          "pattern": {
+            "type": "string",
+            "defaultValue": "^\\d+\\.\\d$"
+          },
+          "folder": {
+            "type": "string",
+            "defaultValue": "C:\\temp\\file.txt"
+          },
+          "rx": {
+            "type": "string",
+            "defaultValue": "^\\d{3}\\\\n$"
+          }
+        }
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/linkedServices/ls_paths"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/linkedServices/ls_paths"
+    ],
+    "batch": 0
+  }
+]

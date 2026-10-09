@@ -1,0 +1,14 @@
+{
+	"name": "lakedb_example",
+	"type": "DATABASE",
+	"properties": {
+		"Name": "lakedb_example",
+		"EntityType": "DATABASE",
+		"Origin": { "Type": "SPARK" },
+		"Properties": { "IsSyMSCDMDatabase": true },
+		"Source": { "Provider": "ADLS", "Location": "abfss://data@stexample.dfs.core.windows.net/lakedb_example", "Properties": { "FormatType": "csv", "LinkedServiceName": "myworkspace-WorkspaceDefaultStorage" } },
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 1,
+		"ObjectId": "00000000-0000-0000-0000-000000000000"
+	}
+}

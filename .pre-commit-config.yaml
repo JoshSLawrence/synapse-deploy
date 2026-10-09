@@ -1,0 +1,54 @@
+exclude: ^(dist/|test/fixtures/|package-lock\.json$)
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        exclude: ^dist/
+
+  # The tools below come from mise.toml, so CI and a laptop run the same
+  # versions without pre-commit building its own copies.
+  - repo: local
+    hooks:
+      - id: actionlint
+        name: actionlint
+        entry: actionlint
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+
+      - id: zizmor
+        name: zizmor
+        entry: zizmor --offline
+        language: system
+        files: ^\.github/(workflows|actions)/.*\.ya?ml$|^\.github/dependabot\.yml$
+
+      - id: markdownlint-cli2
+        name: markdownlint-cli2
+        entry: markdownlint-cli2
+        language: system
+        types: [markdown]
+
+      - id: eslint
+        name: eslint
+        entry: npx --no-install eslint
+        language: system
+        types_or: [ts, javascript]
+        pass_filenames: false
+
+      - id: prettier
+        name: prettier --check
+        entry: npx --no-install prettier --check
+        language: system
+        types_or: [ts, javascript, json]
+
+      - id: tsc
+        name: tsc --noEmit
+        entry: npx --no-install tsc --noEmit
+        language: system
+        types: [ts]
+        pass_filenames: false

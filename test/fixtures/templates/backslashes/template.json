@@ -1,0 +1,74 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    },
+    "p_unc": {
+      "type": "string"
+    },
+    "p_regex": {
+      "type": "string"
+    },
+    "p_win": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/ls_paths')]",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "FileServer",
+        "typeProperties": {
+          "host": "[parameters('p_unc')]",
+          "userId": "contoso\\svc"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/pl_paths')]",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "parameters": {
+          "pattern": {
+            "type": "string",
+            "defaultValue": "^\\d+\\.\\d$"
+          },
+          "folder": {
+            "type": "string",
+            "defaultValue": "[parameters('p_win')]"
+          },
+          "rx": {
+            "type": "string",
+            "defaultValue": "[parameters('p_regex')]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[concat(variables('workspaceId'), '/linkedServices/ls_paths')]"
+      ]
+    }
+  ]
+}

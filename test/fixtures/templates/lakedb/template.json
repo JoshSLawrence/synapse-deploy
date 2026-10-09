@@ -1,0 +1,152 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/lakedb_example')]",
+      "type": "Microsoft.Synapse/workspaces/databases",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "Ddls": [
+          {
+            "ActionType": "CREATE",
+            "OldEntity": null,
+            "NewEntity": {
+              "Name": "lakedb_example",
+              "EntityType": "DATABASE",
+              "Origin": {
+                "Type": "SPARK"
+              },
+              "Properties": {
+                "IsSyMSCDMDatabase": true
+              },
+              "Source": {
+                "Provider": "ADLS",
+                "Location": "abfss://data@stexample.dfs.core.windows.net/lakedb_example",
+                "Properties": {
+                  "FormatType": "csv",
+                  "LinkedServiceName": "devws-WorkspaceDefaultStorage"
+                }
+              },
+              "PublishStatus": "PUBLISHED",
+              "ObjectVersion": 1,
+              "ObjectId": "00000000-0000-0000-0000-000000000000"
+            },
+            "Source": {
+              "Type": "SPARK"
+            }
+          },
+          {
+            "ActionType": "CREATE",
+            "OldEntity": null,
+            "NewEntity": {
+              "Name": "customers",
+              "EntityType": "TABLE",
+              "Namespace": {
+                "DatabaseName": "lakedb_example"
+              },
+              "TableType": "EXTERNAL",
+              "Properties": {},
+              "StorageDescriptor": {
+                "Columns": [
+                  {
+                    "Name": "id",
+                    "OriginDataTypeName": {
+                      "TypeName": "long",
+                      "IsComplexType": false,
+                      "IsNullable": false
+                    }
+                  }
+                ],
+                "Format": {
+                  "InputFormat": "org.apache.hadoop.mapred.SequenceFileInputFormat"
+                },
+                "Source": {
+                  "Provider": "ADLS",
+                  "Location": "abfss://data@stexample.dfs.core.windows.net/lakedb_example/customers"
+                }
+              },
+              "PublishStatus": "PUBLISHED"
+            },
+            "Source": {
+              "Type": "SPARK"
+            }
+          },
+          {
+            "ActionType": "CREATE",
+            "OldEntity": null,
+            "NewEntity": {
+              "Name": "orders",
+              "EntityType": "TABLE",
+              "Namespace": {
+                "DatabaseName": "lakedb_example"
+              },
+              "TableType": "EXTERNAL",
+              "Properties": {},
+              "StorageDescriptor": {
+                "Columns": [
+                  {
+                    "Name": "customer_id",
+                    "OriginDataTypeName": {
+                      "TypeName": "long",
+                      "IsComplexType": false,
+                      "IsNullable": false
+                    }
+                  }
+                ],
+                "Source": {
+                  "Provider": "ADLS",
+                  "Location": "abfss://data@stexample.dfs.core.windows.net/lakedb_example/orders"
+                }
+              },
+              "PublishStatus": "PUBLISHED"
+            },
+            "Source": {
+              "Type": "SPARK"
+            }
+          },
+          {
+            "ActionType": "CREATE",
+            "OldEntity": null,
+            "NewEntity": {
+              "Name": "orders_customers",
+              "EntityType": "RELATIONSHIP",
+              "Namespace": {
+                "DatabaseName": "lakedb_example"
+              },
+              "FromTableName": "orders",
+              "ToTableName": "customers",
+              "ColumnRelationshipInformations": [
+                {
+                  "FromColumnName": "customer_id",
+                  "ToColumnName": "id"
+                }
+              ],
+              "PublishStatus": "PUBLISHED"
+            },
+            "Source": {
+              "Type": "SPARK"
+            }
+          }
+        ]
+      },
+      "dependsOn": []
+    },
+    {
+      "name": "[concat(parameters('workspaceName'), '/default/_unused')]",
+      "type": "Microsoft.Synapse/workspaces/bigDataPools",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {},
+      "dependsOn": []
+    }
+  ]
+}

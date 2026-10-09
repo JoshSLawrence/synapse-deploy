@@ -1,0 +1,77 @@
+[
+  {
+    "name": "pl_brackets",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "pl_brackets",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": [],
+        "parameters": {
+          "a": {
+            "type": "string",
+            "defaultValue": "[1, 2, 3]"
+          },
+          "b": {
+            "type": "string",
+            "defaultValue": "[dbo].[t]"
+          },
+          "c": {
+            "type": "string",
+            "defaultValue": "[[x]"
+          },
+          "d": {
+            "type": "string",
+            "defaultValue": "[x for x in y]"
+          },
+          "e": {
+            "type": "string",
+            "defaultValue": "[x]"
+          },
+          "f": {
+            "type": "string",
+            "defaultValue": "[dbo].[t]"
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "sql_brackets",
+    "type": "Microsoft.Synapse/workspaces/sqlscripts",
+    "isDefault": false,
+    "content": {
+      "name": "sql_brackets",
+      "type": "Microsoft.Synapse/workspaces/sqlscripts",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "content": {
+          "query": "SELECT [name] FROM [dbo].[t] WHERE note = 'it''s [x]'",
+          "metadata": {
+            "language": "sql"
+          }
+        },
+        "type": "SqlQuery"
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  }
+]

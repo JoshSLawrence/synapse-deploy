@@ -1,0 +1,248 @@
+[
+  {
+    "name": "myworkspace-WorkspaceDefaultStorage",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": true,
+    "content": {
+      "name": "devws-WorkspaceDefaultStorage",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "https://stexample.dfs.core.windows.net"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "myworkspace-WorkspaceDefaultSqlServer",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": true,
+    "content": {
+      "name": "devws-WorkspaceDefaultSqlServer",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureSqlDW",
+        "typeProperties": {
+          "connectionString": ""
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "WorkspaceSystemIdentity",
+    "type": "Microsoft.Synapse/workspaces/credentials",
+    "isDefault": true,
+    "content": {
+      "name": "WorkspaceSystemIdentity",
+      "type": "Microsoft.Synapse/workspaces/credentials",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "ManagedIdentity",
+        "typeProperties": {}
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "x-myworkspace-WorkspaceDefaultStorage-copy",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": true,
+    "content": {
+      "name": "x-devws-WorkspaceDefaultStorage-copy",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "https://stexample.dfs.core.windows.net"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "ds_default",
+    "type": "Microsoft.Synapse/workspaces/datasets",
+    "isDefault": false,
+    "content": {
+      "name": "ds_default",
+      "type": "Microsoft.Synapse/workspaces/datasets",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "myworkspace-WorkspaceDefaultStorage",
+          "type": "LinkedServiceReference"
+        },
+        "type": "Binary",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileSystem": "data"
+          }
+        },
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultStorage"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultStorage"
+    ],
+    "batch": 0
+  },
+  {
+    "name": "pl_default",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "pl_default",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Copy",
+            "type": "Copy",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BinarySource"
+              },
+              "sink": {
+                "type": "BinarySink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "ds_default",
+                "type": "DatasetReference"
+              }
+            ],
+            "linkedServiceName": {
+              "referenceName": "myworkspace-WorkspaceDefaultSqlServer",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/datasets/ds_default",
+        "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultSqlServer"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/datasets/ds_default",
+      "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultSqlServer"
+    ],
+    "batch": 0
+  },
+  {
+    "name": "lakedb_default",
+    "type": "Microsoft.Synapse/workspaces/databases",
+    "isDefault": false,
+    "content": {
+      "name": "lakedb_default",
+      "type": "Microsoft.Synapse/workspaces/databases",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "Ddls": [
+          {
+            "ActionType": "CREATE",
+            "OldEntity": null,
+            "NewEntity": {
+              "Name": "lakedb_default",
+              "EntityType": "DATABASE",
+              "Origin": {
+                "Type": "SPARK"
+              },
+              "Properties": {
+                "IsSyMSCDMDatabase": true
+              },
+              "Source": {
+                "Provider": "ADLS",
+                "Location": "abfss://data@stexample.dfs.core.windows.net/lakedb_default",
+                "Properties": {
+                  "FormatType": "csv",
+                  "LinkedServiceName": "devws-WorkspaceDefaultStorage"
+                }
+              }
+            },
+            "Source": {
+              "Type": "SPARK"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultStorage"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultStorage"
+    ],
+    "batch": 0
+  },
+  {
+    "name": "ls_other",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": false,
+    "content": {
+      "name": "ls_other",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureSqlDW",
+        "typeProperties": {
+          "connectionString": "Server=x"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "ls_user",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": false,
+    "content": {
+      "name": "ls_user",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureSqlDatabase",
+        "typeProperties": {
+          "connectionString": "Server=y"
+        },
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultStorage"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/linkedServices/myworkspace-WorkspaceDefaultStorage"
+    ],
+    "batch": 0
+  }
+]

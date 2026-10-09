@@ -1,0 +1,59 @@
+[
+  {
+    "name": "nb_literal",
+    "type": "Microsoft.Synapse/workspaces/notebooks",
+    "isDefault": false,
+    "content": {
+      "name": "nb_literal",
+      "type": "Microsoft.Synapse/workspaces/notebooks",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "nbformat": 4,
+        "nbformat_minor": 2,
+        "metadata": {
+          "language_info": {
+            "name": "python"
+          }
+        },
+        "cells": [
+          {
+            "cell_type": "code",
+            "metadata": {},
+            "source": [
+              "name = 'myworkspace'\n",
+              "wid = Microsoft.Synapse/workspaces/myworkspace\n",
+              "print('real')\n"
+            ],
+            "outputs": [],
+            "execution_count": null
+          }
+        ]
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "sql_literal",
+    "type": "Microsoft.Synapse/workspaces/sqlscripts",
+    "isDefault": false,
+    "content": {
+      "name": "sql_literal",
+      "type": "Microsoft.Synapse/workspaces/sqlscripts",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "content": {
+          "query": "-- 'myworkspace' and Microsoft.Synapse/workspaces/myworkspace\nSELECT 'parameters(''p_x'')'",
+          "metadata": {
+            "language": "sql"
+          }
+        },
+        "type": "SqlQuery"
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  }
+]

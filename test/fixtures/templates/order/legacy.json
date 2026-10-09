@@ -1,0 +1,122 @@
+[
+  {
+    "name": "ls_a",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": false,
+    "content": {
+      "name": "ls_a",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "https://stexample.dfs.core.windows.net"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "ds_b",
+    "type": "Microsoft.Synapse/workspaces/datasets",
+    "isDefault": false,
+    "content": {
+      "name": "ds_b",
+      "type": "Microsoft.Synapse/workspaces/datasets",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "ls_a",
+          "type": "LinkedServiceReference"
+        },
+        "type": "Binary",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileSystem": "data"
+          }
+        },
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/linkedServices/ls_a"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/linkedServices/ls_a"
+    ],
+    "batch": 1
+  },
+  {
+    "name": "pl_c",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "pl_c",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/datasets/ds_b"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/datasets/ds_b"
+    ],
+    "batch": 2
+  },
+  {
+    "name": "tr_d",
+    "type": "Microsoft.Synapse/workspaces/triggers",
+    "isDefault": false,
+    "content": {
+      "name": "tr_d",
+      "type": "Microsoft.Synapse/workspaces/triggers",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "runtimeState": "Stopped",
+        "pipelines": [
+          {
+            "pipelineReference": {
+              "referenceName": "pl_c",
+              "type": "PipelineReference"
+            }
+          }
+        ],
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2026-01-01T00:00:00Z",
+            "timeZone": "UTC"
+          }
+        },
+        "annotations": []
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/pipelines/pl_c"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/pipelines/pl_c"
+    ],
+    "batch": 3
+  }
+]

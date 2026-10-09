@@ -1,0 +1,9 @@
+{
+	"name": "myworkspace-WorkspaceDefaultStorage",
+	"type": "Microsoft.Synapse/workspaces/linkedservices",
+	"properties": {
+		"typeProperties": { "url": "https://stexample.dfs.core.windows.net" },
+		"type": "AzureBlobFS",
+		"annotations": []
+	}
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "value": "myworkspace"
+    },
+    "p_str": {
+      "value": "45.0"
+    },
+    "p_int": {
+      "value": 7
+    },
+    "p_bool": {
+      "value": true
+    },
+    "p_obj": {
+      "value": {
+        "a": 1,
+        "b": "x"
+      }
+    },
+    "p_arr": {
+      "value": [
+        1,
+        2
+      ]
+    },
+    "p_secure": {
+      "value": ""
+    },
+    "p_strnum": {
+      "value": "007"
+    }
+  }
+}

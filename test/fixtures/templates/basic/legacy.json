@@ -1,0 +1,180 @@
+[
+  {
+    "name": "Notebook 1 - git",
+    "type": "Microsoft.Synapse/workspaces/notebooks",
+    "isDefault": false,
+    "content": {
+      "name": "Notebook 1 - git",
+      "type": "Microsoft.Synapse/workspaces/notebooks",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "nbformat": 4,
+        "nbformat_minor": 2,
+        "bigDataPool": {
+          "referenceName": "sparkpoolgit",
+          "type": "BigDataPoolReference"
+        },
+        "sessionProperties": {
+          "driverMemory": "28g",
+          "driverCores": 4,
+          "executorMemory": "28g",
+          "executorCores": 4,
+          "numExecutors": 2,
+          "conf": {
+            "spark.dynamicAllocation.enabled": "false",
+            "spark.dynamicAllocation.minExecutors": "2",
+            "spark.dynamicAllocation.maxExecutors": "2"
+          }
+        },
+        "metadata": {
+          "saveOutput": true,
+          "synapse_widget": {
+            "version": "0.1"
+          },
+          "kernelspec": {
+            "name": "synapse_pyspark",
+            "display_name": "Synapse PySpark"
+          },
+          "language_info": {
+            "name": "python"
+          },
+          "a365ComputeOptions": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/myworkspace/bigDataPools/sparkpoolgit",
+            "name": "sparkpoolgit",
+            "type": "Spark",
+            "endpoint": "https://myworkspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpoolgit",
+            "auth": {
+              "type": "AAD",
+              "authResource": "https://dev.azuresynapse.net"
+            },
+            "sparkVersion": "2.4",
+            "nodeCount": 10,
+            "cores": 4,
+            "memory": 28
+          }
+        },
+        "cells": [
+          {
+            "cell_type": "code",
+            "metadata": {
+              "microsoft": {
+                "language": "python"
+              }
+            },
+            "source": [
+              "%%pyspark\r\n",
+              "print()"
+            ],
+            "attachments": null,
+            "outputs": [],
+            "execution_count": 2
+          }
+        ]
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "AutoResolveIntegrationRuntime",
+    "type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+    "isDefault": false,
+    "content": {
+      "name": "AutoResolveIntegrationRuntime",
+      "type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "Managed",
+        "typeProperties": {
+          "computeProperties": {
+            "location": "AutoResolve",
+            "dataFlowProperties": {
+              "computeType": "General",
+              "coreCount": 8,
+              "timeToLive": 0
+            }
+          }
+        }
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "Pipeline 1 - git",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "Pipeline 1 - git",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Notebook 1 - git",
+            "type": "SynapseNotebook",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "notebook": {
+                "referenceName": "Notebook 1 - git",
+                "type": "NotebookReference"
+              }
+            }
+          }
+        ],
+        "annotations": [],
+        "lastPublishTime": "2021-02-12T06:20:49Z"
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/notebooks/Notebook 1 - git"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/notebooks/Notebook 1 - git"
+    ],
+    "batch": 1
+  },
+  {
+    "name": "myworkspace-WorkspaceDefaultSqlServer",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": true,
+    "content": {
+      "name": "myworkspace-WorkspaceDefaultSqlServer",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "parameters": {
+          "DBName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "AzureSqlDW",
+        "typeProperties": {
+          "connectionString": ""
+        },
+        "connectVia": {
+          "referenceName": "AutoResolveIntegrationRuntime",
+          "type": "IntegrationRuntimeReference"
+        }
+      },
+      "dependsOn": [
+        "Microsoft.Synapse/workspaces/myworkspace/integrationRuntimes/AutoResolveIntegrationRuntime"
+      ]
+    },
+    "dependson": [
+      "Microsoft.Synapse/workspaces/myworkspace/integrationRuntimes/AutoResolveIntegrationRuntime"
+    ],
+    "batch": 1
+  }
+]

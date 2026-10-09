@@ -1,0 +1,61 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": "Workspace name"
+    },
+    "p_str": {
+      "type": "string",
+      "defaultValue": "unused"
+    },
+    "p_int": {
+      "type": "int"
+    },
+    "p_bool": {
+      "type": "bool"
+    },
+    "p_obj": {
+      "type": "object"
+    },
+    "p_arr": {
+      "type": "array"
+    },
+    "p_secure": {
+      "type": "securestring"
+    },
+    "p_strnum": {
+      "type": "string"
+    },
+    "p_default_only": {
+      "type": "string",
+      "defaultValue": "from-default"
+    }
+  },
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/ls_types')]",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[parameters('p_str')]",
+          "count": "[parameters('p_int')]",
+          "flag": "[parameters('p_bool')]",
+          "settings": "[parameters('p_obj')]",
+          "items": "[parameters('p_arr')]",
+          "secret": "[parameters('p_secure')]",
+          "digits": "[parameters('p_strnum')]",
+          "fallback": "[parameters('p_default_only')]"
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    }
+  ]
+}

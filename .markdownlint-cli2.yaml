@@ -1,0 +1,7 @@
+config:
+  line-length:
+    line_length: 80
+ignores:
+  - node_modules
+  - CLAUDE.md
+  - AGENTS.md

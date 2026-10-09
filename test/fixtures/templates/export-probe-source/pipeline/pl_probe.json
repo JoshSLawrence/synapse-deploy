@@ -1,0 +1,18 @@
+{
+	"name": "pl_probe",
+	"properties": {
+		"activities": [
+			{ "name": "Wait", "type": "Wait", "dependsOn": [], "userProperties": [], "typeProperties": { "waitTimeInSeconds": 1 } }
+		],
+		"parameters": {
+			"p_array_text": { "type": "string", "defaultValue": "[1, 2, 3]" },
+			"p_bracket": { "type": "string", "defaultValue": "[x]" },
+			"p_double": { "type": "string", "defaultValue": "[[x]" },
+			"p_sql": { "type": "string", "defaultValue": "[dbo].[t]" },
+			"p_apostrophe": { "type": "string", "defaultValue": "it's" },
+			"p_backslash": { "type": "string", "defaultValue": "C:\\temp\\file.txt" },
+			"p_number_text": { "type": "string", "defaultValue": "45.0" }
+		},
+		"annotations": []
+	}
+}

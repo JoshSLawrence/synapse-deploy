@@ -1,0 +1,158 @@
+[
+  {
+    "name": "pl_probe",
+    "type": "Microsoft.Synapse/workspaces/pipelines",
+    "isDefault": false,
+    "content": {
+      "name": "pl_probe",
+      "type": "Microsoft.Synapse/workspaces/pipelines",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "activities": [
+          {
+            "name": "Wait",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            }
+          }
+        ],
+        "policy": {
+          "elapsedTimeMetric": {}
+        },
+        "parameters": {
+          "p_array_text": {
+            "type": "string",
+            "defaultValue": [
+              1,
+              2,
+              3
+            ]
+          },
+          "p_bracket": {
+            "type": "string",
+            "defaultValue": "[x]"
+          },
+          "p_double": {
+            "type": "string",
+            "defaultValue": "[[x]"
+          },
+          "p_sql": {
+            "type": "string",
+            "defaultValue": "[dbo].[t]"
+          },
+          "p_apostrophe": {
+            "type": "string",
+            "defaultValue": "it's"
+          },
+          "p_backslash": {
+            "type": "string",
+            "defaultValue": "C:\\temp\\file.txt"
+          },
+          "p_number_text": {
+            "type": "string",
+            "defaultValue": "45.0"
+          }
+        },
+        "annotations": []
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "myworkspace-WorkspaceDefaultStorage",
+    "type": "Microsoft.Synapse/workspaces/linkedServices",
+    "isDefault": true,
+    "content": {
+      "name": "myworkspace-WorkspaceDefaultStorage",
+      "type": "Microsoft.Synapse/workspaces/linkedServices",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "annotations": [],
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "https://stexample.dfs.core.windows.net"
+        }
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "sql_probe",
+    "type": "Microsoft.Synapse/workspaces/sqlscripts",
+    "isDefault": false,
+    "content": {
+      "name": "sql_probe",
+      "type": "Microsoft.Synapse/workspaces/sqlscripts",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "content": {
+          "query": "SELECT [name] FROM [dbo].[t] WHERE note = 'it''s [x]'",
+          "metadata": {
+            "language": "sql"
+          },
+          "currentConnection": {
+            "databaseName": "master",
+            "poolName": "Built-in"
+          },
+          "resultLimit": 5000
+        },
+        "type": "SqlQuery"
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  },
+  {
+    "name": "lakedb_example",
+    "type": "Microsoft.Synapse/workspaces/databases",
+    "isDefault": false,
+    "content": {
+      "name": "lakedb_example",
+      "type": "Microsoft.Synapse/workspaces/databases",
+      "apiVersion": "2019-06-01-preview",
+      "properties": {
+        "Ddls": [
+          {
+            "ActionType": "CREATE",
+            "OldEntity": null,
+            "NewEntity": {
+              "Name": "lakedb_example",
+              "EntityType": "DATABASE",
+              "Origin": {
+                "Type": "SPARK"
+              },
+              "Properties": {
+                "IsSyMSCDMDatabase": true
+              },
+              "Source": {
+                "Provider": "ADLS",
+                "Location": "abfss://data@stexample.dfs.core.windows.net/lakedb_example",
+                "Properties": {
+                  "FormatType": "csv",
+                  "LinkedServiceName": "myworkspace-WorkspaceDefaultStorage"
+                }
+              },
+              "PublishStatus": "PUBLISHED",
+              "ObjectVersion": 1,
+              "ObjectId": "00000000-0000-0000-0000-000000000000"
+            },
+            "Source": {
+              "Type": "SPARK"
+            }
+          }
+        ]
+      },
+      "dependsOn": []
+    },
+    "dependson": [],
+    "batch": 0
+  }
+]
