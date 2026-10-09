@@ -1,0 +1,30 @@
+[
+  {
+    "artifact": "myworkspace-WorkspaceDefaultStorage",
+    "path": "content.name",
+    "legacy": "devws-WorkspaceDefaultStorage",
+    "current": "myworkspace-WorkspaceDefaultStorage",
+    "reason": "anchored defaults"
+  },
+  {
+    "artifact": "myworkspace-WorkspaceDefaultSqlServer",
+    "path": "content.name",
+    "legacy": "devws-WorkspaceDefaultSqlServer",
+    "current": "myworkspace-WorkspaceDefaultSqlServer",
+    "reason": "anchored defaults"
+  },
+  {
+    "artifact": "x-myworkspace-WorkspaceDefaultStorage-copy",
+    "path": "name",
+    "legacy": "x-myworkspace-WorkspaceDefaultStorage-copy",
+    "current": "x-devws-WorkspaceDefaultStorage-copy",
+    "reason": "anchored defaults"
+  },
+  {
+    "artifact": "x-myworkspace-WorkspaceDefaultStorage-copy",
+    "path": "isDefault",
+    "legacy": true,
+    "current": false,
+    "reason": "anchored defaults"
+  }
+]

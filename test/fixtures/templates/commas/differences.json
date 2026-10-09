@@ -1,0 +1,44 @@
+[
+  {
+    "artifact": "ls_commas",
+    "path": "content.properties.typeProperties.connectionString",
+    "legacy": "Server=tcp:sql.example.com'433;Initial Catalog=db",
+    "current": "Server=tcp:sql.example.com,1433;Initial Catalog=db",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "ls_commas",
+    "path": "content.properties.typeProperties.fromVariable",
+    "legacy": "[Server=sql.example.com'433;Database=db]",
+    "current": "Server=sql.example.com,1433;Database=db",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "ls_commas",
+    "path": "content.properties.typeProperties.lit",
+    "legacy": "'a | 'it''sk",
+    "current": "a, b | it's, ok",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "pl_commas",
+    "path": "content.properties.description",
+    "legacy": "'onewo''three",
+    "current": "one, two, three",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "a",
+    "path": "name",
+    "legacy": "a",
+    "current": "a, b",
+    "reason": "comma- and quote-safe concat"
+  },
+  {
+    "artifact": "a",
+    "path": "content.name",
+    "legacy": "a",
+    "current": "a, b",
+    "reason": "comma- and quote-safe concat"
+  }
+]

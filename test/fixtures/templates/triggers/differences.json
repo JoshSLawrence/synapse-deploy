@@ -1,0 +1,9 @@
+[
+  {
+    "artifact": "tr_schedule",
+    "path": "content.properties.typeProperties.recurrence.startTime",
+    "legacy": "[parameters('p_start')]",
+    "current": "2026-01-01T00:00:00Z",
+    "reason": "template defaults now applied"
+  }
+]

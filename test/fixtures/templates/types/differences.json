@@ -1,0 +1,16 @@
+[
+  {
+    "artifact": "ls_types",
+    "path": "content.properties.typeProperties.url",
+    "legacy": 45,
+    "current": "45.0",
+    "reason": "issue #94 typing"
+  },
+  {
+    "artifact": "ls_types",
+    "path": "content.properties.typeProperties.fallback",
+    "legacy": "[parameters('p_default_only')]",
+    "current": "from-default",
+    "reason": "template defaults now applied"
+  }
+]
