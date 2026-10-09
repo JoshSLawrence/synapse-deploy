@@ -637,23 +637,15 @@ describe('template: loadTemplate', () => {
   const dir = join(import.meta.dirname, 'fixtures', 'templates', 'types');
 
   it('reads the template and parameter files', async () => {
-    const written: string[] = [];
-    const original = process.stdout.write.bind(process.stdout);
-    process.stdout.write = (chunk: string | Uint8Array) => {
-      written.push(String(chunk));
-      return true;
-    };
-    try {
-      const { artifacts } = await loadTemplate({
-        workspaceName: 'myworkspace',
-        templateFile: join(dir, 'template.json'),
-        parameterFiles: [join(dir, 'parameters.json')],
-        parameters: [{ name: 'p_int', value: '9' }],
-      });
-      assert.equal((body(artifacts)['typeProperties'] as Obj)['count'], 9);
-    } finally {
-      process.stdout.write = original;
-    }
+    // No capture of stdout here: swapping it across an await would swallow
+    // the test runner's own output. This fixture emits no workflow commands.
+    const { artifacts } = await loadTemplate({
+      workspaceName: 'myworkspace',
+      templateFile: join(dir, 'template.json'),
+      parameterFiles: [join(dir, 'parameters.json')],
+      parameters: [{ name: 'p_int', value: '9' }],
+    });
+    assert.equal((body(artifacts)['typeProperties'] as Obj)['count'], 9);
   });
 
   it('names a file that cannot be read', async () => {
