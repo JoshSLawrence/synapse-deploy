@@ -8,8 +8,11 @@ Azure/Synapse-workspace-deployment
 that deploys Azure Synapse workspace artifacts. Portions of the following
 files are derived from it and keep its copyright header:
 
+- `src/arm.ts`
 - `src/defaults.ts`
 - `src/kinds.ts`
+- `src/lakedb.ts`
+- `src/synapse.ts`
 - `src/template.ts`
 - `test/fixtures/templates/basic/` (`template.json`, `parameters.json` and
   `legacy.json`), which derive from a test helper written by Microsoft.
