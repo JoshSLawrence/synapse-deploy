@@ -26723,7 +26723,9 @@ var KINDS = [
 var byTail = new Map(KINDS.map((kind2) => [kind2.templateTail, kind2]));
 var byCollection = new Map(KINDS.map((kind2) => [kind2.collection.toLowerCase(), kind2]));
 var byReferenceType = new Map(
-  KINDS.flatMap((kind2) => kind2.referenceType === void 0 ? [] : [[kind2.referenceType, kind2]])
+  KINDS.flatMap(
+    (kind2) => kind2.referenceType === void 0 ? [] : [[kind2.referenceType.toLowerCase(), kind2]]
+  )
 );
 function kindForTemplateType(type) {
   const lower = type.toLowerCase();
@@ -26736,7 +26738,7 @@ function kindForCollection(collection) {
   return byCollection.get(collection.toLowerCase());
 }
 function kindForReferenceType(referenceType) {
-  return byReferenceType.get(referenceType);
+  return byReferenceType.get(referenceType.toLowerCase());
 }
 function unsupportedTypeMessage(type) {
   return `unsupported type ${type}; the deployer handles ` + KINDS.map((kind2) => kind2.templateTail).join(", ") + ".";
@@ -43900,7 +43902,7 @@ function createTokenProvider(inputs, credential = createCredential(inputs), time
 // src/defaults.ts
 var DEFAULT_LINKED_SERVICE = /-workspacedefault(sqlserver|storage)$/i;
 var DEFAULT_CREDENTIAL = /^workspacesystemidentity$/i;
-var DEFAULT_ENDPOINT = /^synapse-ws-(sql|sqlondemand|kusto)--/i;
+var DEFAULT_ENDPOINT = /^synapse-ws-/i;
 var REMAPPABLE_LINKED_SERVICE = /^(.+)-WorkspaceDefault(Storage|SqlServer)$/i;
 function isServiceDefault(kind2, name3) {
   switch (kind2) {
@@ -45105,6 +45107,7 @@ async function planLakeChildren(ctx, live, template) {
 // src/report.ts
 import { appendFile as appendFile2 } from "node:fs/promises";
 var MAX_SUMMARY_ROWS = 1e3;
+var MAX_CELL_CHARS = 300;
 var SECTION_TITLES = {
   deploy: "Deploy",
   skip: "Skipped",
@@ -45129,14 +45132,15 @@ function setOutputs(counts) {
   setOutput("deleted", counts.deleted);
 }
 function cell(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|").replace(/`/g, "'").replace(/\r?\n/g, " ");
+  const short = text.length > MAX_CELL_CHARS ? `${text.slice(0, MAX_CELL_CHARS)}...` : text;
+  return short.replace(/\\/g, "\\\\").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "\\|").replace(/`/g, "'").replace(/\r?\n/g, " ");
 }
 function summaryMarkdown(data) {
   const { counts } = data;
   const lines = [
     `## Synapse deploy${data.dryRun ? " (dry run)" : ""}`,
     "",
-    data.dryRun ? `Would deploy ${counts.deployed}, skip ${counts.skipped} and delete ${counts.deleted}.` : `Deployed ${counts.deployed}, skipped ${counts.skipped} and deleted ${counts.deleted}.`,
+    (data.dryRun ? `Would deploy ${counts.deployed}, skip ${counts.skipped} and delete ${counts.deleted}` : `Deployed ${counts.deployed}, skipped ${counts.skipped} and deleted ${counts.deleted}`) + (data.lakeChildren ? ` (and ${data.lakeChildren} lake database tables or relationships)` : "") + ".",
     ""
   ];
   if (data.verdict) {
@@ -45455,11 +45459,18 @@ async function run(inputs, deps) {
       });
     }
     setOutputs(counts);
-    await writeSummary({ dryRun: true, verdict: "", counts, rows });
+    await writeSummary({
+      dryRun: true,
+      verdict: "",
+      counts,
+      rows,
+      lakeChildren: plan.children.length
+    });
     info("dry run: nothing was changed");
     return counts;
   }
   const problems = [];
+  let lakeChildren = 0;
   const deployed = await group(
     `Deploy (${deployable.length})`,
     () => schedule(nodes, async (key) => {
@@ -45526,6 +45537,8 @@ async function run(inputs, deps) {
     const childByKey = new Map(plan.children.map((child) => [childKey(child), child]));
     const failedDeletes = [];
     let attempted = 0;
+    let failedCount = 0;
+    let childrenDeleted = 0;
     await group(`Delete (${total})`, async () => {
       const removed = await schedule(plan.deletionNodes, async (key) => {
         const artifact = byLiveKey.get(key);
@@ -45558,53 +45571,64 @@ async function run(inputs, deps) {
         counts.deleted++;
       });
       attempted += removed.succeeded.length + removed.failed.length;
+      failedCount += removed.failed.length;
       if (removed.failed.length > 0) {
         return;
       }
-      const emptied = await schedule(childNodes(plan.children), async (key) => {
-        const child = childByKey.get(key);
-        if (child === void 0) {
-          throw new Error(`internal error: ${key} is not a lake database child`);
-        }
-        const label = describeLakeChild(child);
-        const started = deps.now();
-        try {
-          await deleteLakeChild(synapse, child);
-        } catch (error2) {
-          logFailed(label, messageOf(error2));
+      const emptied = await schedule(
+        childNodes(plan.children),
+        async (key) => {
+          const child = childByKey.get(key);
+          if (child === void 0) {
+            throw new Error(`internal error: ${key} is not a lake database child`);
+          }
+          const label = describeLakeChild(child);
+          const started = deps.now();
+          try {
+            await deleteLakeChild(synapse, child);
+          } catch (error2) {
+            logFailed(label, messageOf(error2));
+            rows.push({
+              section: "delete",
+              artifact: label,
+              outcome: "failed",
+              detail: messageOf(error2)
+            });
+            failedDeletes.push(label);
+            throw error2;
+          }
+          const elapsed = deps.now() - started;
+          logDeleted(label, elapsed);
           rows.push({
             section: "delete",
             artifact: label,
-            outcome: "failed",
-            detail: messageOf(error2)
+            outcome: "deleted",
+            detail: seconds(elapsed)
           });
-          failedDeletes.push(label);
-          throw error2;
-        }
-        const elapsed = deps.now() - started;
-        logDeleted(label, elapsed);
-        rows.push({
-          section: "delete",
-          artifact: label,
-          outcome: "deleted",
-          detail: seconds(elapsed)
-        });
-      });
+          childrenDeleted++;
+        },
+        // One at a time: parallel DDL deletes on one database are unverified.
+        1
+      );
+      failedCount += emptied.failed.length;
       attempted += emptied.succeeded.length + emptied.failed.length;
     });
-    if (failedDeletes.length > 0 || attempted < total) {
+    lakeChildren = childrenDeleted;
+    if (failedCount > 0 || attempted < total) {
       problems.push(
-        `Deletion failed: ${failedDeletes.length} of ${total} failed (${list(failedDeletes)}); ${total - attempted} not started.`
+        `Deletion failed: ${failedCount} of ${total} failed (${list(failedDeletes)}); ${total - attempted} not started.`
       );
     }
   }
   setOutputs(counts);
   const verdict = problems.join(" ");
-  await writeSummary({ dryRun: false, verdict, counts, rows });
+  await writeSummary({ dryRun: false, verdict, counts, rows, lakeChildren });
   if (verdict) {
     throw new Error(verdict);
   }
-  info(`deployed ${counts.deployed}, skipped ${counts.skipped}, deleted ${counts.deleted}`);
+  info(
+    `deployed ${counts.deployed}, skipped ${counts.skipped}, deleted ${counts.deleted}` + (lakeChildren > 0 ? ` (and ${lakeChildren} lake database tables or relationships)` : "")
+  );
   return counts;
 }
 

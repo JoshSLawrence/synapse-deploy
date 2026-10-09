@@ -25,6 +25,12 @@ describe('isServiceDefault', () => {
       true,
     );
     assert.equal(isServiceDefault('managedPrivateEndpoints', 'synapse-ws-kusto--devws'), true);
+    assert.equal(
+      isServiceDefault('managedPrivateEndpoints', 'synapse-ws-custstgacct--myworkspace-stexample'),
+      true,
+    );
+    assert.equal(isServiceDefault('managedPrivateEndpoints', 'Synapse-WS-Other'), true);
+    assert.equal(isServiceDefault('managedPrivateEndpoints', 'my-synapse-ws-pe'), false);
     assert.equal(isServiceDefault('managedPrivateEndpoints', 'pe_storage'), false);
   });
 

@@ -73,7 +73,7 @@ inputs:
     description: >-
       Deploy the template's managed private endpoints. When false they
       are neither deployed nor deleted. When true with delete-artifacts,
-      endpoints not in the template are deleted (not synapse-ws-*).
+      endpoints not in the template are deleted (never synapse-ws-*, which the workspace creates).
     required: false
     default: "false"
   dry-run:

@@ -130,7 +130,9 @@ export const KINDS: readonly Kind[] = [
 const byTail = new Map(KINDS.map((kind) => [kind.templateTail, kind]));
 const byCollection = new Map(KINDS.map((kind) => [kind.collection.toLowerCase(), kind]));
 const byReferenceType = new Map(
-  KINDS.flatMap((kind) => (kind.referenceType === undefined ? [] : [[kind.referenceType, kind]])),
+  KINDS.flatMap((kind) =>
+    kind.referenceType === undefined ? [] : [[kind.referenceType.toLowerCase(), kind]],
+  ),
 );
 
 /** The kind of a template resource type, or undefined when it is unsupported. */
@@ -149,7 +151,7 @@ export function kindForCollection(collection: string): Kind | undefined {
 
 /** The kind a `{referenceName, type}` object points at; other types give undefined. */
 export function kindForReferenceType(referenceType: string): Kind | undefined {
-  return byReferenceType.get(referenceType);
+  return byReferenceType.get(referenceType.toLowerCase());
 }
 
 export function unsupportedTypeMessage(type: string): string {

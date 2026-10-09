@@ -23,10 +23,15 @@ export interface SummaryData {
   verdict: string;
   counts: Counts;
   rows: readonly Row[];
+  /** Lake database tables and relationships deleted (or to be); not part of `counts`. */
+  lakeChildren?: number;
 }
 
 /** Longer tables are cut here; GitHub limits a job summary to 1 MiB. */
 export const MAX_SUMMARY_ROWS = 1_000;
+
+// Service messages can be long; 1,000 rows of them must stay under that limit.
+const MAX_CELL_CHARS = 300;
 
 const SECTION_TITLES: Record<Section, string> = {
   deploy: 'Deploy',
@@ -60,7 +65,9 @@ export function setOutputs(counts: Counts): void {
 // The summary is markdown, and artifact names and service messages are
 // free text: keep them from breaking the table or injecting markup.
 function cell(text: string): string {
-  return text
+  const short = text.length > MAX_CELL_CHARS ? `${text.slice(0, MAX_CELL_CHARS)}...` : text;
+  return short
+    .replace(/\\/g, '\\\\')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -74,9 +81,13 @@ export function summaryMarkdown(data: SummaryData): string {
   const lines = [
     `## Synapse deploy${data.dryRun ? ' (dry run)' : ''}`,
     '',
-    data.dryRun
-      ? `Would deploy ${counts.deployed}, skip ${counts.skipped} and delete ${counts.deleted}.`
-      : `Deployed ${counts.deployed}, skipped ${counts.skipped} and deleted ${counts.deleted}.`,
+    (data.dryRun
+      ? `Would deploy ${counts.deployed}, skip ${counts.skipped} and delete ${counts.deleted}`
+      : `Deployed ${counts.deployed}, skipped ${counts.skipped} and deleted ${counts.deleted}`) +
+      (data.lakeChildren
+        ? ` (and ${data.lakeChildren} lake database tables or relationships)`
+        : '') +
+      '.',
     '',
   ];
   if (data.verdict) {

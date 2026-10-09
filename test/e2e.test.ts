@@ -393,12 +393,14 @@ describe('run: deletion', () => {
       { name: 'pe_old', properties: {} },
       { name: 'pe_keep', properties: {} },
       { name: `synapse-ws-sql--${WORKSPACE}`, properties: {} },
+      { name: `synapse-ws-custstgacct--${WORKSPACE}-stexample`, properties: {} },
     ]);
     fake.seedDatabase('spark_made', { symscdm: false });
     fake.seedDatabase('other_origin', { origin: 'OTHER' });
     for (const name of ['lake_old', 'lake_a', 'lake_b']) {
       fake.seedDatabase(name);
     }
+    fake.seedDatabase('lake_other', { tables: ['t1'], relationships: ['r1'] });
     fake.seedDatabase('lake_keep', {
       tables: ['CUSTOMERS', 'stale_table'],
       relationships: ['rel_old', 'rel_keep'],
@@ -419,6 +421,7 @@ describe('run: deletion', () => {
     '/databases/lake_keep/relationships/rel_old',
     '/databases/lake_keep/tables/stale_table',
     '/databases/lake_old',
+    '/databases/lake_other',
     '/datasets/ds_old',
     '/linkedServices/ls_old',
     '/linkedServices/x-WorkspaceDefaultStorage-copy',
@@ -442,7 +445,9 @@ describe('run: deletion', () => {
       assert.deepEqual(deletes(fake).map(decoded).sort(), expected.sort());
       // Children are not artifacts; the count follows the artifacts only.
       assert.equal(counts.deleted, expected.length - 2);
+      assert.ok(!deletes(fake).some((r) => r.path.startsWith('/databases/lake_other/')));
       assert.equal(outcome.outputs['deleted'], String(expected.length - 2));
+      assert.match(outcome.summary, /\(and 2 lake database tables or relationships\)\./);
 
       const order = deletes(fake).map(decoded);
       const at = (path: string) => order.indexOf(path);
@@ -461,6 +466,7 @@ describe('run: deletion', () => {
       assert.ok(fake.get('credentials', 'WorkspaceSystemIdentity'));
       assert.ok(fake.get(ENDPOINTS, `synapse-ws-sql--${WORKSPACE}`));
       assert.ok(fake.get(ENDPOINTS, 'pe_keep'));
+      assert.ok(fake.get(ENDPOINTS, `synapse-ws-custstgacct--${WORKSPACE}-stexample`));
       assert.equal(fake.get(ENDPOINTS, 'pe_old') !== undefined, !withEndpoints);
       assert.deepEqual(
         fake.databaseChildren('lake_keep', 'tables').map((n) => n.toLowerCase()),
@@ -628,7 +634,10 @@ describe('run: dry run', () => {
     assert.match(outcome.log, /^would delete pipelines\/pl_old$/m);
     assert.match(outcome.log, /^would delete databases\/lake_keep table stale_table$/m);
     assert.match(outcome.summary, /^## Synapse deploy \(dry run\)$/m);
-    assert.match(outcome.summary, /Would deploy 13, skip 4 and delete 2\./);
+    assert.match(
+      outcome.summary,
+      /Would deploy 13, skip 4 and delete 2 \(and 2 lake database tables or relationships\)\./,
+    );
     assert.match(outcome.summary, /\| pipelines\/pl_old \| would delete \|/);
   });
 
@@ -691,4 +700,130 @@ describe('the exit guard', () => {
     const green = runChild('ok');
     assert.equal(green.status, 0, green.stdout + green.stderr);
   });
+});
+
+describe('run: deletion safety', () => {
+  it('deletes lake children one at a time, relationships first, each after the last answered', async () => {
+    const fake = await start({ latencyMs: 30 });
+    fake.seedDatabase('lake_keep', {
+      tables: ['stale_a', 'stale_b'],
+      relationships: ['rel_a', 'rel_b'],
+    });
+    ok(await execute(setup([database('lake_keep')], { deleteArtifacts: true }), depsFor(fake)));
+    const children = deletes(fake).filter((r) => r.path.startsWith('/databases/lake_keep/'));
+    assert.equal(children.length, 4);
+    assert.deepEqual(
+      children.map((r) => r.path.split('/')[3]),
+      ['relationships', 'relationships', 'tables', 'tables'],
+    );
+    for (let i = 1; i < children.length; i++) {
+      const gap = (children[i]?.time ?? 0) - (children[i - 1]?.time ?? 0);
+      assert.ok(gap >= 25, `delete ${i} arrived ${gap} ms after the previous one`);
+    }
+  });
+
+  it('deletes no lake child after an artifact deletion failed', async () => {
+    const fake = await start({ lroPolls: 0 });
+    fake.seed('pipelines', [{ name: 'pl_a', properties: {} }]);
+    fake.failOperation('pl_a', 'cannot delete');
+    fake.seedDatabase('lake_keep', { tables: ['stale'], relationships: ['rel_old'] });
+    const outcome = await execute(
+      setup([database('lake_keep')], { deleteArtifacts: true }),
+      depsFor(fake),
+    );
+    assert.match(
+      failure(outcome),
+      /^Deletion failed: 1 of 3 failed \(pipelines\/pl_a\); 2 not started\.$/,
+    );
+    assert.deepEqual(fake.databaseChildren('lake_keep', 'tables'), ['stale']);
+    assert.deepEqual(fake.databaseChildren('lake_keep', 'relationships'), ['rel_old']);
+  });
+
+  const lists: [string, string, string][] = [
+    ['a plain collection', '/pipelines', 'pipelines'],
+    ['the lake databases', '/databases', 'databases'],
+  ];
+  for (const [what, path, collection] of lists) {
+    for (const status of [403, 500]) {
+      it(`fails with no write when page 2 of ${what} answers ${status}`, async () => {
+        const fake = await start();
+        if (collection === 'databases') {
+          for (const name of ['lake_a', 'lake_b', 'lake_c']) fake.seedDatabase(name);
+        } else {
+          fake.seed('pipelines', [{ name: 'pl_a' }, { name: 'pl_b' }, { name: 'pl_c' }]);
+        }
+        fake.addFault({
+          method: 'GET',
+          path: new RegExp(`^${path}$`),
+          nth: 2,
+          count: Infinity,
+          response: { status, body: '{"error":{"message":"page two failed"}}' },
+        });
+        const outcome = await execute(
+          setup([resource('notebooks', 'nb_a')], { deleteArtifacts: true }),
+          depsFor(fake),
+        );
+        assert.match(failure(outcome), new RegExp(String(status)));
+        assert.equal(fake.writes().length, 0);
+      });
+    }
+  }
+
+  it('fails with no write when a nextLink repeats', async () => {
+    const fake = await start();
+    fake.addFault({
+      method: 'GET',
+      path: /^\/datasets$/,
+      count: Infinity,
+      response: {
+        status: 200,
+        body: JSON.stringify({
+          value: [{ name: 'ds_a' }],
+          nextLink: `${fake.url}/datasets?api-version=2019-06-01-preview&skiptoken=1`,
+        }),
+      },
+    });
+    const outcome = await execute(
+      setup([resource('notebooks', 'nb_a')], { deleteArtifacts: true }),
+      depsFor(fake),
+    );
+    assert.match(failure(outcome), /keeps returning nextLink pages/);
+    assert.equal(fake.writes().length, 0);
+  });
+
+  it('fails with no write when a continuationToken repeats', async () => {
+    const fake = await start();
+    fake.addFault({
+      method: 'GET',
+      path: /^\/databases$/,
+      count: Infinity,
+      response: { status: 200, body: JSON.stringify({ items: [], continuationToken: 'again' }) },
+    });
+    const outcome = await execute(
+      setup([resource('notebooks', 'nb_a')], { deleteArtifacts: true }),
+      depsFor(fake),
+    );
+    assert.match(failure(outcome), /keeps returning continuation tokens/);
+    assert.equal(fake.writes().length, 0);
+  });
+});
+
+describe('run: transient faults', () => {
+  for (const [status, headers] of [
+    [429, { 'Retry-After': '1' }],
+    [503, {}],
+  ] as const) {
+    it(`retries a deploy that first answers ${status}`, async () => {
+      const fake = await start();
+      fake.addFault({
+        method: 'PUT',
+        path: /^\/pipelines\/pl_a$/,
+        response: { status, headers, body: '{"error":{"message":"busy"}}' },
+      });
+      const counts = ok(await execute(setup([resource('pipelines', 'pl_a')]), depsFor(fake)));
+      assert.deepEqual(counts, { deployed: 1, skipped: 0, deleted: 0 });
+      assert.equal(puts(fake).length, 2);
+      assert.ok(fake.get('pipelines', 'pl_a'));
+    });
+  }
 });

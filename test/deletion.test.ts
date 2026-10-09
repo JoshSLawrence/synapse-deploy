@@ -52,6 +52,10 @@ describe('planDeletions', () => {
         live('linkedServices', 'x-WorkspaceDefaultStorage-copy'),
         live('credentials', 'WorkspaceSystemIdentity'),
         live('managedVirtualNetworks/default/managedPrivateEndpoints', 'synapse-ws-sql--other'),
+        live(
+          'managedVirtualNetworks/default/managedPrivateEndpoints',
+          'synapse-ws-custstgacct--myworkspace-stexample',
+        ),
         live('managedVirtualNetworks/default/managedPrivateEndpoints', 'pe_old'),
       ],
       [],
