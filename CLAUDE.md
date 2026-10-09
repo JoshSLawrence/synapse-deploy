@@ -55,6 +55,7 @@ README.md
 scripts/
   build.mjs
 src/
+  arm.ts
   auth.ts
   cloud.ts
   defaults.ts
@@ -64,11 +65,16 @@ src/
   http.ts
   inputs.ts
   kinds.ts
+  lakedb.ts
+  lro.ts
   main.ts
   mask.ts
   run.ts
+  synapse.ts
   template.ts
 test/
+  fake/
+    synapse_server.ts
   fixtures/
     templates/
   support/
