@@ -140,9 +140,9 @@ extension.
 ## dist/ is committed
 
 GitHub runs `dist/index.js`; `dist/licenses.txt` carries the notices of the
-packages bundled into it, written by the same build, so any change to `src/`, `scripts/build.mjs`,
-`package-lock.json` or the toolchain needs a rebuilt `dist/` in the same
-commit. The `Build` check fails on a stale `dist/`. A Dependabot npm pull
+packages bundled into it, written by the same build, so any change to
+`src/`, `scripts/build.mjs`, `package-lock.json` or the toolchain needs a
+rebuilt `dist/` in the same commit. The `Build` check fails on a stale `dist/`. A Dependabot npm pull
 request fails it by design: check out the branch, run `mise run build`, commit
 `dist/` and push.
 
@@ -220,7 +220,8 @@ protected by a ruleset (the owner is a bypass actor); `vMAJOR` is not.
 `Azure E2E` (`.github/workflows/azure-e2e.yaml`) deploys the fixtures in
 `test/fixtures/azure-e2e/` to a real workspace with the checked-out commit's
 committed `dist/` (`uses: ./`), checks counts and state after each step
-(deploy, redeploy, dry run, deploy with deletion), then restores the workspace and fails if it does not end as it began.
+(deploy, redeploy, dry run, deploy with deletion), then restores the
+workspace and fails if it does not end as it began.
 A second job, `log-check.sh`, scans the finished job log.
 
 - It runs in the `azure-e2e` environment (deployment branches: `main` only,
