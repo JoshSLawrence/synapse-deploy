@@ -32,18 +32,20 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
     steps:
+      # The start step runs a script from the repository, so it comes after
+      # the checkout.
+      - name: Check out
+        timeout-minutes: 5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Start
         timeout-minutes: 5
         env:
           STEP_DEBUG_VAR: ${{ vars.ACTIONS_STEP_DEBUG }}
           RUNNER_DEBUG_VAR: ${{ vars.ACTIONS_RUNNER_DEBUG }}
         run: .github/scripts/azure-e2e/steps.sh start
-
-      - name: Check out
-        timeout-minutes: 5
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
 
       - name: Azure login (OIDC)
         timeout-minutes: 5
