@@ -37,7 +37,6 @@ jobs:
       VERSION: ${{ inputs.version }}
       DRY_RUN: ${{ inputs.dry-run }}
       SKIP_E2E: ${{ inputs.skip-e2e }}
-      GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Check out
@@ -63,6 +62,7 @@ jobs:
       - name: Check the release (read-only)
         env:
           PREFLIGHT: "true"
+          GH_TOKEN: ${{ github.token }}
         run: .github/scripts/release.sh
 
   release:

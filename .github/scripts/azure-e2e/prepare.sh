@@ -12,9 +12,8 @@
 #   <output-dir>/v2-trigger/TemplateForWorkspace.json  v2, trigger changed
 #   <output-dir>/empty/TemplateForWorkspace.json       v1 without resources
 #
-# Writes step outputs when GITHUB_OUTPUT is set: storage_account,
-# storage_filesystem, storage_id, params_v1 and params_v2 (name=value lines
-# for the action's parameters input). None of it is committed; the
+# Writes step outputs when GITHUB_OUTPUT is set: params_v1 and params_v2
+# (name=value lines for the action's parameters input). None of it is committed; the
 # values are masked with ::add-mask:: as soon as they are found.
 #
 # Environment variables:
@@ -103,9 +102,6 @@ params_v2="ls_e2e_storage_properties_typeProperties_url=${url}"
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   {
-    echo "storage_account=${account}"
-    echo "storage_filesystem=${filesystem}"
-    echo "storage_id=${storage_id}"
     echo "params_v1<<E2E_EOF"
     echo "$params_v1"
     echo "E2E_EOF"

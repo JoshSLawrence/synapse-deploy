@@ -31,6 +31,8 @@ check "valid_version rejects v1.2.3-rc1" 1 valid_version v1.2.3-rc1
 check "valid_version rejects empty" 1 valid_version ""
 
 check "is_higher: v1.10.0 after v1.9.0" 0 is_higher v1.10.0 v1.9.0
+check "is_higher: v2.0.0 after v1.9.9" 0 is_higher v2.0.0 v1.9.9
+check "is_higher: v1.2.10 after v1.2.9" 0 is_higher v1.2.10 v1.2.9
 check "is_higher: v1.9.0 not after v1.10.0" 1 is_higher v1.9.0 v1.10.0
 check "is_higher: equal is not higher" 1 is_higher v1.2.3 v1.2.3
 check "is_higher: empty old passes" 0 is_higher v1.0.0 ""

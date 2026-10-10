@@ -27,6 +27,7 @@ or under `example`. The hosts allowed in fixtures are `contoso`, `example.com`,
 ## Layout
 
 ```text
+.gitattributes
 .github/
   dependabot.yml
   scripts/
@@ -39,6 +40,7 @@ or under `example`. The hosts allowed in fixtures are `contoso`, `example.com`,
       log-check.sh
       prepare.sh
       snapshot.sh
+      steps.sh
     check-dist.sh
     release-test.sh
     release.sh
@@ -47,7 +49,6 @@ or under `example`. The hosts allowed in fixtures are `contoso`, `example.com`,
     azure-e2e.yaml
     ci.yaml
     release.yaml
-.gitattributes
 .gitignore
 .markdownlint-cli2.yaml
 .pre-commit-config.yaml
@@ -161,7 +162,9 @@ request fails it by design: check out the branch, run `mise run build`, commit
   checkout uses `persist-credentials: false`.
 - Tools come from `mise.toml` through `jdx/mise-action`.
 - One command per `run:` step; logic lives in `.github/scripts/*.sh`.
-- `timeout-minutes` on every job, and concurrency per ref.
+- `timeout-minutes` on every job, and concurrency per ref. The two exceptions
+  are `azure-e2e` and `release`, which share one group each and never cancel
+  a run in progress.
 - actionlint and zizmor must be clean (they run in `mise run lint`).
 
 ## Versioning
@@ -210,6 +213,12 @@ A second job, `log-check.sh`, scans the finished job log.
 - Never set the repository variables `ACTIONS_STEP_DEBUG` or
   `ACTIONS_RUNNER_DEBUG`, and never re-run with debug logging: the run log is
   public. The workflow refuses to run at debug level.
+- Every step of the e2e job has its own `timeout-minutes`, so the job timeout
+  never ends a step: a cancelled or timed-out job's remaining steps get only
+  a few minutes. The cleanup signs in again first, because a federated token
+  cannot be refreshed after about an hour.
+- A cancelled or timed-out run can leave leftovers in the workspace. The next
+  run refuses to start (`--require-empty`) until they are removed by hand.
 - No artifact uploads: public run artifacts are downloadable by anyone.
 - One run at a time, also across repositories that use the same workspace.
 - The log check proves that hosts, resource paths, GUIDs and tokens never

@@ -95,6 +95,11 @@ LOGCHECK_ALLOW="$allow" perl -e '
     for my $x ($line =~ /([^\s\/.@\x27"]+)\.dev\.azuresynapse\.net/gi) {
       $hit{"workspace-host"} = 1 unless $ok{lc $x};
     }
+    # The SQL endpoints: <ws>.sql... and <ws>-ondemand.sql...
+    for my $x ($line =~ /([^\s\/.@\x27"]+)\.sql\.azuresynapse\.net/gi) {
+      (my $name = lc $x) =~ s/-ondemand$//;
+      $hit{"sql-host"} = 1 unless $ok{$name};
+    }
     for my $x ($line =~ /([^\s\/.@\x27"]+)\.(?:dfs|blob)\.core\.windows\.net/gi) {
       $hit{"storage-host"} = 1 unless $ok{lc $x};
     }
@@ -102,15 +107,15 @@ LOGCHECK_ALLOW="$allow" perl -e '
     for my $x ($line =~ /abfss:\/\/[^@\s\x27"]*@([^.\s\/\x27"]+)/gi) {
       $hit{"abfss-account"} = 1 unless $ok{lc $x};
     }
-    for my $x ($line =~ /\/resourceGroups\/([^\/\s\x27"]+)/gi) {
+    for my $x ($line =~ /(?:\/|%2f)resourceGroups(?:\/|%2f)([^\/%\s\x27"]+)/gi) {
       $hit{"resource-group-path"} = 1 unless $ok{lc $x};
     }
     # Anchored on /providers/ so that the type names the action logs
     # (Microsoft.Synapse/workspaces/notebooks) are not mistaken for a path.
-    for my $x ($line =~ /\/providers\/Microsoft\.Synapse\/workspaces\/([^\/\s\x27"]+)/gi) {
+    for my $x ($line =~ /(?:\/|%2f)providers(?:\/|%2f)Microsoft\.Synapse(?:\/|%2f)workspaces(?:\/|%2f)([^\/%\s\x27"]+)/gi) {
       $hit{"workspace-path"} = 1 unless $ok{lc $x};
     }
-    for my $x ($line =~ /\/storageAccounts\/([^\/\s\x27"]+)/gi) {
+    for my $x ($line =~ /(?:\/|%2f)storageAccounts(?:\/|%2f)([^\/%\s\x27"]+)/gi) {
       $hit{"storage-path"} = 1 unless $ok{lc $x};
     }
     $hit{"token"} = 1 if $line =~ /eyJ[A-Za-z0-9_-]{10,}/;
