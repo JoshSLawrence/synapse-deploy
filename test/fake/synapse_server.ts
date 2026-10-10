@@ -639,6 +639,9 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     }
     if (method === 'DELETE') {
       if (existing === undefined || existing.deleting === 0) {
+        if (existing !== undefined) {
+          items.delete(key);
+        }
         notFound(res, collection, name);
         return;
       }
@@ -649,6 +652,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
           finishDelete(res, collection, name, apiVersion, '', writing, {
             failCode: 'DeleteDataFactoryResourceOrchestrationError',
             failMessage: TRIGGER_ENABLED_MESSAGE,
+            goneAfter: false,
           });
         }
         return;
@@ -680,10 +684,13 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     writing: Writing,
     extra: Partial<Operation> = {},
   ): void {
-    if (config.deleteMode === 'sync') {
+    // A failing operation is the service's answer however deletes usually go.
+    if (config.deleteMode === 'sync' && extra.failMessage === undefined) {
       send(res, 200, {});
       return;
     }
+    // Notebook deletes are assumed to poll under /notebookOperationResults like
+    // their PUTs; only the PUT was observed.
     const notebook = collection === 'notebooks';
     const id = newOperation(
       {
@@ -927,7 +934,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       if (config.armMode === 'workspace-location' && existing !== undefined) {
         const base = `/${segments.slice(0, -2).join('/')}`;
         const id = newOperation(
-          { flavor: 'data', body: undefined, base },
+          { flavor: 'data', body: undefined, base, remaining: config.armPolls },
           name,
           writing,
           (opId) => `${base}/operationResults/${opId}?api-version=${armVersion}`,
@@ -962,7 +969,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
           properties: { ...record(stored.body.properties), provisioningState: 'Succeeded' },
         };
         const id = newOperation(
-          { flavor: 'data', body: done, base },
+          { flavor: 'data', body: done, base, remaining: config.armPolls },
           name,
           writing,
           (opId) => `${base}/operationResults/${opId}?api-version=${armVersion}`,

@@ -188,6 +188,39 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
     assert.match(del.message, HINT);
   });
 
+  it('still fails with the hint when deletes are synchronous or operations are gone', async () => {
+    for (const config of [
+      { deleteMode: 'sync' },
+      { deleteCompletion: 'not-found' },
+    ] as Partial<FakeConfig>[]) {
+      const { server: fake, ctx } = await start(config);
+      fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
+      const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+      assert.match(del.message, /disabled first/);
+      assert.match(del.message, HINT);
+      assert.deepEqual(fake.names('triggers'), ['tr_hourly']);
+      await server?.close();
+    }
+  });
+
+  it('renders the real, space-terminated trigger message without doubled punctuation', async () => {
+    const { server: fake, ctx } = await start({
+      triggerPutMode: 'sync-400',
+      triggerDeleteMode: 'sync-409',
+    });
+    fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
+    const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+    assert.match(
+      del.message,
+      /disabled first\. Stop the trigger first; the deployer does not start or stop triggers\.$/,
+    );
+    assert.doesNotMatch(del.message, /\.\.| \. /);
+    fake.config.triggerDeleteMode = 'lro-failed';
+    const failed = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+    assert.match(failed.message, /disabled first\. Stop the trigger first/);
+    assert.doesNotMatch(failed.message, /\.\.| \. /);
+  });
+
   it('adds no hint when only the trigger name says "started", or the artifact is not a trigger', async () => {
     const { server: fake, ctx } = await start();
     fake.addFault({
@@ -305,7 +338,7 @@ describe('managed private endpoints', () => {
     await deleteArtifact(ctx, pe, 'pe_sql');
     const gets = fake.requests.filter((r) => r.method === 'GET');
     assert.equal(gets.length, 5, 'four answers of 200, then the 404');
-    assert.equal(waits.length, 4);
+    assert.deepEqual(waits, [2000, 4000, 8000, 16000]);
     assert.deepEqual(fake.names(pe.collection), []);
   });
 
@@ -326,6 +359,7 @@ describe('managed private endpoints', () => {
     assert.match(err.message, /pe_sql/);
     assert.match(err.message, /did not finish within 1 minutes/);
     assert.match(err.message, /last status: the endpoint still exists/);
+    assert.match(err.message, /Managed private endpoints/);
     assert.match(err.message, /re-run the job/);
   });
 
@@ -338,6 +372,12 @@ describe('managed private endpoints', () => {
       path: /managedPrivateEndpoints/,
       nth: 2,
       response: { status: 503, body: 'busy' },
+    });
+    fake.addFault({
+      method: 'GET',
+      path: /managedPrivateEndpoints/,
+      nth: 3,
+      response: { status: 429, headers: { 'Retry-After': '1' }, body: 'slow down' },
     });
     await deleteArtifact(ctx, pe, 'pe_sql');
     assert.deepEqual(fake.names(pe.collection), []);

@@ -170,9 +170,11 @@ export function serviceMessageOf(text: string): string {
   } catch {
     // Not JSON: the raw text is the best explanation there is.
   }
-  return message.length > MAX_SERVICE_MESSAGE_CHARS
-    ? message.slice(0, MAX_SERVICE_MESSAGE_CHARS) + '...'
-    : message;
+  // Synapse's own texts can end in a space ("...disabled first. ").
+  const trimmed = message.trim();
+  return trimmed.length > MAX_SERVICE_MESSAGE_CHARS
+    ? trimmed.slice(0, MAX_SERVICE_MESSAGE_CHARS) + '...'
+    : trimmed;
 }
 
 /** Builds the error for a response the caller does not accept. */
@@ -182,7 +184,7 @@ export function responseError(res: Response): HttpError {
   return new HttpError(
     `${res.method} ${pathOf(res.url)} failed with status ${res.status}${attempts}` +
       (serviceMessage ? `: ${serviceMessage}` : '') +
-      '.' +
+      (serviceMessage.endsWith('.') ? '' : '.') +
       permissionHint(res.status, GENERIC_ROLE),
     res.status,
     serviceMessage,

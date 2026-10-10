@@ -91,7 +91,8 @@ function stringField(record: Record<string, unknown> | undefined, key: string): 
 
 function errorMessageOf(body: Record<string, unknown> | undefined): string {
   const error = asRecord(body?.error);
-  return stringField(error, 'message') ?? stringField(body, 'message') ?? 'no reason given';
+  const message = stringField(error, 'message') ?? stringField(body, 'message');
+  return message?.trim() || 'no reason given';
 }
 
 /**
@@ -137,6 +138,7 @@ async function poll(
   deadlineAt: number,
   interpret: Interpreter,
   initialHeaders: Response['headers'] = {},
+  advice = 'Check the operation in Synapse Studio and re-run the job.',
 ): Promise<void> {
   let last: string | undefined;
   // A Retry-After on the initial answer says when the first poll is worth
@@ -163,7 +165,7 @@ async function poll(
   const minutes = Math.round((ctx.deadlineMs ?? OPERATION_DEADLINE_MS) / 60_000);
   throw new Error(
     `${target.label} did not finish within ${minutes} minutes (last status: ${last ?? 'none'}). ` +
-      'Check the operation in Synapse Studio and re-run the job.',
+      advice,
   );
 }
 
@@ -395,22 +397,28 @@ export async function awaitEndpointDelete(
   ensureSuccess(del);
   const deadlineAt = deadlineFor(ctx);
   await followDelete(ctx, del, target, deadlineAt);
-  if (headerValue(del.headers, 'location') !== undefined) {
-    return;
-  }
-  await poll(ctx, target, del.url, deadlineAt, (res) => {
-    if (res.status === 404) {
-      return true;
-    }
-    if (res.status === 429) {
-      return 'HTTP 429';
-    }
-    if (res.status < 200 || res.status >= 300) {
-      throw unexpected(res, target);
-    }
-    const state = stringField(asRecord(strictBody(res)?.properties), 'provisioningState');
-    return `the endpoint still exists${state === undefined ? '' : ` (provisioningState ${state})`}`;
-  });
+  // Even a finished operation is not proof: the endpoint is gone only when it says so.
+  await poll(
+    ctx,
+    target,
+    del.url,
+    deadlineAt,
+    (res) => {
+      if (res.status === 404) {
+        return true;
+      }
+      if (res.status === 429) {
+        return 'HTTP 429';
+      }
+      if (res.status < 200 || res.status >= 300) {
+        throw unexpected(res, target);
+      }
+      const state = stringField(asRecord(strictBody(res)?.properties), 'provisioningState');
+      return `the endpoint still exists${state === undefined ? '' : ` (provisioningState ${state})`}`;
+    },
+    del.headers,
+    'Check the managed private endpoint in Synapse Studio (Manage > Managed private endpoints) and re-run the job.',
+  );
 }
 
 function provisioningInterpreter(target: OperationTarget): Interpreter {

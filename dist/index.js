@@ -26522,13 +26522,14 @@ function serviceMessageOf(text) {
     }
   } catch {
   }
-  return message.length > MAX_SERVICE_MESSAGE_CHARS ? message.slice(0, MAX_SERVICE_MESSAGE_CHARS) + "..." : message;
+  const trimmed = message.trim();
+  return trimmed.length > MAX_SERVICE_MESSAGE_CHARS ? trimmed.slice(0, MAX_SERVICE_MESSAGE_CHARS) + "..." : trimmed;
 }
 function responseError(res) {
   const serviceMessage = serviceMessageOf(res.text);
   const attempts = res.attempts > 1 ? ` after ${res.attempts} attempts` : "";
   return new HttpError(
-    `${res.method} ${pathOf(res.url)} failed with status ${res.status}${attempts}` + (serviceMessage ? `: ${serviceMessage}` : "") + "." + permissionHint(res.status, GENERIC_ROLE),
+    `${res.method} ${pathOf(res.url)} failed with status ${res.status}${attempts}` + (serviceMessage ? `: ${serviceMessage}` : "") + (serviceMessage.endsWith(".") ? "" : ".") + permissionHint(res.status, GENERIC_ROLE),
     res.status,
     serviceMessage
   );
@@ -26776,7 +26777,8 @@ function stringField(record, key) {
 }
 function errorMessageOf(body) {
   const error2 = asRecord(body?.error);
-  return stringField(error2, "message") ?? stringField(body, "message") ?? "no reason given";
+  const message = stringField(error2, "message") ?? stringField(body, "message");
+  return message?.trim() || "no reason given";
 }
 function sameOriginUrl(requestUrl, target) {
   const base = new URL(requestUrl);
@@ -26802,7 +26804,7 @@ function pollWaitMs(headers, poll2, nowMs) {
   }
   return Math.min(BASE_POLL_WAIT_MS * 2 ** (poll2 - 1), MAX_POLL_WAIT_MS);
 }
-async function poll(ctx, target, url, deadlineAt, interpret, initialHeaders = {}) {
+async function poll(ctx, target, url, deadlineAt, interpret, initialHeaders = {}, advice = "Check the operation in Synapse Studio and re-run the job.") {
   let last;
   const initialHint = headerValue(initialHeaders, "retry-after");
   if (initialHint !== void 0 && initialHint.trim() !== "") {
@@ -26825,7 +26827,7 @@ async function poll(ctx, target, url, deadlineAt, interpret, initialHeaders = {}
   }
   const minutes = Math.round((ctx.deadlineMs ?? OPERATION_DEADLINE_MS) / 6e4);
   throw new Error(
-    `${target.label} did not finish within ${minutes} minutes (last status: ${last ?? "none"}). Check the operation in Synapse Studio and re-run the job.`
+    `${target.label} did not finish within ${minutes} minutes (last status: ${last ?? "none"}). ` + advice
   );
 }
 function deadlineFor(ctx) {
@@ -26982,22 +26984,27 @@ async function awaitEndpointDelete(ctx, del, target) {
   ensureSuccess(del);
   const deadlineAt = deadlineFor(ctx);
   await followDelete(ctx, del, target, deadlineAt);
-  if (headerValue(del.headers, "location") !== void 0) {
-    return;
-  }
-  await poll(ctx, target, del.url, deadlineAt, (res) => {
-    if (res.status === 404) {
-      return true;
-    }
-    if (res.status === 429) {
-      return "HTTP 429";
-    }
-    if (res.status < 200 || res.status >= 300) {
-      throw unexpected(res, target);
-    }
-    const state3 = stringField(asRecord(strictBody(res)?.properties), "provisioningState");
-    return `the endpoint still exists${state3 === void 0 ? "" : ` (provisioningState ${state3})`}`;
-  });
+  await poll(
+    ctx,
+    target,
+    del.url,
+    deadlineAt,
+    (res) => {
+      if (res.status === 404) {
+        return true;
+      }
+      if (res.status === 429) {
+        return "HTTP 429";
+      }
+      if (res.status < 200 || res.status >= 300) {
+        throw unexpected(res, target);
+      }
+      const state3 = stringField(asRecord(strictBody(res)?.properties), "provisioningState");
+      return `the endpoint still exists${state3 === void 0 ? "" : ` (provisioningState ${state3})`}`;
+    },
+    del.headers,
+    "Check the managed private endpoint in Synapse Studio (Manage > Managed private endpoints) and re-run the job."
+  );
 }
 function provisioningInterpreter(target) {
   return (res) => {
