@@ -142,9 +142,9 @@ extension.
 GitHub runs `dist/index.js`; `dist/licenses.txt` carries the notices of the
 packages bundled into it, written by the same build, so any change to
 `src/`, `scripts/build.mjs`, `package-lock.json` or the toolchain needs a
-rebuilt `dist/` in the same commit. The `Build` check fails on a stale `dist/`. A Dependabot npm pull
-request fails it by design: check out the branch, run `mise run build`, commit
-`dist/` and push.
+rebuilt `dist/` in the same commit. The `Build` check fails on a stale
+`dist/`. A Dependabot npm pull request fails it by design: check out the
+branch, run `mise run build`, commit `dist/` and push.
 
 ## Documentation
 
