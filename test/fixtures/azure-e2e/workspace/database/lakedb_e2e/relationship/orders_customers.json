@@ -1,0 +1,20 @@
+{
+	"name": "orders_customers",
+	"properties": {
+		"Name": "orders_customers",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": { "DatabaseName": "lakedb_e2e" },
+		"FromTableName": "orders",
+		"ToTableName": "customers",
+		"RelationshipType": "MANYTOONE",
+		"ColumnRelationshipInformations": [
+			{ "FromColumnName": "customer_id", "ToColumnName": "id" }
+		],
+		"Properties": {},
+		"Origin": { "Type": "SPARK", "InstanceId": null },
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 1,
+		"ObjectId": "00000000-0000-0000-0000-0000000000c1"
+	},
+	"type": "RELATIONSHIP"
+}

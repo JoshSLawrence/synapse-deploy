@@ -1,0 +1,23 @@
+{
+	"name": "ds_e2e",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_e2e_storage",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "e2e.csv",
+				"fileSystem": "e2e"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	}
+}

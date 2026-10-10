@@ -1,0 +1,4 @@
+# Tools for this workspace folder, and only these: node runs the export
+# bundle (scripts/build.sh of the actions repository).
+[tools]
+node = "22.23.3"

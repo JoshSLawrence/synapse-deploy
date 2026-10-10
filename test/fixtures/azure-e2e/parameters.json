@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "ls_e2e_storage_properties_typeProperties_url": {
+      "value": "https://stexample.dfs.core.windows.net"
+    },
+    "mpe-e2e-blob_properties_privateLinkResourceId": {
+      "value": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stexample"
+    },
+    "workspaceName": {
+      "value": "myworkspace"
+    }
+  }
+}
