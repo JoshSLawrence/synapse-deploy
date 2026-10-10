@@ -88,9 +88,17 @@ export interface LakeChild {
 // A listing that keeps handing out tokens is broken; stop instead of looping.
 const MAX_PAGES = 1_000;
 
+// A lake database listing item is {id, name, properties, type}, with the
+// entity's own fields under `properties` (verified on a real workspace). The
+// flat shape this code assumed before (Name, Origin, Properties at the top) is
+// still accepted so a listing in that shape keeps working.
 function nameOf(item: Record<string, unknown>): string | undefined {
-  const name = item.Name ?? item.name;
+  const name = item.name ?? item.Name;
   return typeof name === 'string' && name !== '' ? name : undefined;
+}
+
+function fieldsOf(item: Record<string, unknown>): Record<string, unknown> {
+  return asRecord(item.properties) ?? item;
 }
 
 /**
@@ -141,8 +149,9 @@ async function listItems(ctx: SynapseContext, path: string): Promise<Record<stri
 export async function listLakeDatabases(ctx: SynapseContext): Promise<string[]> {
   const names: string[] = [];
   for (const item of await listItems(ctx, '/databases')) {
-    const origin = asRecord(item.Origin)?.Type;
-    const symscdm = asRecord(item.Properties)?.IsSyMSCDMDatabase;
+    const fields = fieldsOf(item);
+    const origin = asRecord(fields.Origin)?.Type;
+    const symscdm = asRecord(fields.Properties)?.IsSyMSCDMDatabase;
     const name = nameOf(item);
     if (
       name !== undefined &&

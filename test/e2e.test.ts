@@ -827,3 +827,65 @@ describe('run: transient faults', () => {
     });
   }
 });
+
+describe('run: lake database listing shapes', () => {
+  it('reads the real shape: nested properties, SPARK case-insensitive, SyMS boolean only', async () => {
+    const fake = await start();
+    fake.seedDatabase('lake_gone');
+    fake.seedDatabase('lake_lower', { origin: 'spark' });
+    fake.seedDatabase('lake_other', { origin: 'OTHER' });
+    fake.seedDatabase('lake_notsyms', { symscdm: false });
+    fake.seedDatabase('lake_keep', { tables: ['stale'], relationships: ['rel_old'] });
+    const outcome = await execute(
+      setup([database('lake_keep')], { deleteArtifacts: true }),
+      depsFor(fake),
+    );
+    ok(outcome);
+    assert.deepEqual(deletes(fake).map(decoded).sort(), [
+      '/databases/lake_gone',
+      '/databases/lake_keep/relationships/rel_old',
+      '/databases/lake_keep/tables/stale',
+      '/databases/lake_lower',
+    ]);
+  });
+
+  it('deletes only databases whose flags are exactly SPARK and boolean true', async () => {
+    const fake = await start();
+    fake.seedDatabase('lake_genuine');
+    fake.seedDatabase('lake_str_true', { symscdm: 'true' });
+    fake.seedDatabase('lake_str_false', { symscdm: 'false' });
+    fake.seedDatabase('lake_bool_false', { symscdm: false });
+    fake.seedDatabase('lake_num_one', { symscdm: 1 });
+    fake.seedDatabase('lake_no_props', { raw: { Origin: { Type: 'SPARK' } } });
+    fake.seedDatabase('lake_no_origin', { raw: { Properties: { IsSyMSCDMDatabase: true } } });
+    fake.seedDatabase('lake_origin_num', { origin: 1 });
+    ok(
+      await execute(
+        setup([resource('notebooks', 'nb_a')], { deleteArtifacts: true }),
+        depsFor(fake),
+      ),
+    );
+    assert.deepEqual(deletes(fake).map(decoded), ['/databases/lake_genuine']);
+  });
+
+  it('still accepts the flat shape', async () => {
+    const fake = await start();
+    const flat = (name: string) => ({
+      Name: name,
+      Origin: { Type: 'SPARK' },
+      Properties: { IsSyMSCDMDatabase: true },
+    });
+    fake.addFault({
+      method: 'GET',
+      path: /^\/databases$/,
+      response: { status: 200, body: JSON.stringify({ items: [flat('lake_flat')] }) },
+    });
+    ok(
+      await execute(
+        setup([resource('notebooks', 'nb_a')], { deleteArtifacts: true }),
+        depsFor(fake),
+      ),
+    );
+    assert.ok(deletes(fake).some((r) => r.path === '/databases/lake_flat'));
+  });
+});
