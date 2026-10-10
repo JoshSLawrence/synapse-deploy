@@ -38,8 +38,17 @@ You need:
 
 The exported parameters file carries the source workspace's values, so add a
 second parameters file with the target's (later files win). Here
-`parameters/production.json` is your own ARM parameters file, such as
-`{"parameters": {"storageAccountUrl": {"value": "https://stexample.dfs.core.windows.net"}}}`.
+`parameters/production.json` is your own ARM parameters file, such as:
+
+```json
+{
+  "parameters": {
+    "storageAccountUrl": {
+      "value": "https://stexample.dfs.core.windows.net"
+    }
+  }
+}
+```
 
 Then add a job:
 
@@ -197,9 +206,12 @@ requests from forks never get, so run the job for same-repository pull
 requests only.
 
 A pull request can edit the workflow, so give the job its own environment and
-federated credential, never the production one. Ideally the identity is
+federated credential, never the production one. Use a separate identity (a
+different app registration, so a different `client-id`) that is ideally
 read-only: Synapse Artifact User can read artifacts, but listing the workspace
-under that role is untested.
+under that role is untested. Restrict the production environment's deployment
+branches to `main` (and require a reviewer); otherwise a pull request can
+switch the job to it.
 See [`examples/plan-and-deploy.yaml`](examples/plan-and-deploy.yaml).
 
 ## Reserved names
