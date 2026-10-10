@@ -1,0 +1,16 @@
+{
+	"Microsoft.Synapse/workspaces/linkedServices": {
+		"*": {
+			"properties": {
+				"typeProperties": {
+					"url": "="
+				}
+			}
+		}
+	},
+	"Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints": {
+		"properties": {
+			"privateLinkResourceId": "="
+		}
+	}
+}

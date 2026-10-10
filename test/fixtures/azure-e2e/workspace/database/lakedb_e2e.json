@@ -1,0 +1,14 @@
+{
+	"name": "lakedb_e2e",
+	"type": "DATABASE",
+	"properties": {
+		"Name": "lakedb_e2e",
+		"EntityType": "DATABASE",
+		"Origin": { "Type": "SPARK" },
+		"Properties": { "IsSyMSCDMDatabase": true },
+		"Source": { "Provider": "ADLS", "Location": "abfss://e2e@stexample.dfs.core.windows.net/lakedb_e2e", "Properties": { "FormatType": "csv", "LinkedServiceName": "ls_e2e_storage" } },
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 1,
+		"ObjectId": "00000000-0000-0000-0000-000000000000"
+	}
+}

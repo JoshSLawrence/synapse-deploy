@@ -1,0 +1,23 @@
+{
+	"name": "nb_e2e",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"metadata": {
+			"language_info": {
+				"name": "python"
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"values = ['[x]', '[[x]', '[dbo].[t]']\n",
+					"print(values)"
+				],
+				"outputs": [],
+				"execution_count": null
+			}
+		]
+	}
+}

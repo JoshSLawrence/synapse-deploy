@@ -1,0 +1,21 @@
+{
+	"name": "pl_e2e",
+	"properties": {
+		"activities": [
+			{
+				"name": "Wait",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": 1
+				}
+			}
+		],
+		"parameters": {
+			"p_bracket": { "type": "string", "defaultValue": "[x]" },
+			"p_number_text": { "type": "string", "defaultValue": "45.0" }
+		},
+		"annotations": []
+	}
+}

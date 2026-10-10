@@ -1,0 +1,35 @@
+{
+	"name": "df_e2e",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_e2e",
+						"type": "DatasetReference"
+					},
+					"name": "src"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_e2e",
+						"type": "DatasetReference"
+					},
+					"name": "snk"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false) ~> src",
+				"src sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> snk"
+			]
+		}
+	}
+}

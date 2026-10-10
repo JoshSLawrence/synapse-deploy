@@ -1,0 +1,10 @@
+{
+	"name": "mpe-e2e-blob",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stexample",
+		"groupId": "blob",
+		"fqdns": [
+			"stexample.blob.core.windows.net"
+		]
+	}
+}

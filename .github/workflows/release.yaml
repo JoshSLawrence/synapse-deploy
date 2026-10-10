@@ -1,0 +1,88 @@
+# Releases main's head as an immutable vX.Y.Z and moves the lightweight major
+# tag. The write token is held only by the second job, which never installs
+# dependencies. Release requires a successful Azure E2E run for the commit.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, vX.Y.Z
+        required: true
+        type: string
+      dry-run:
+        description: Validate, print the release notes and the commands; change nothing
+        type: boolean
+        default: false
+      skip-e2e:
+        description: Release without a green Azure E2E run for this commit (only if Azure is down)
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    env:
+      VERSION: ${{ inputs.version }}
+      DRY_RUN: ${{ inputs.dry-run }}
+      SKIP_E2E: ${{ inputs.skip-e2e }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          cache: false
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check
+        run: mise run typecheck
+      - name: Test
+        run: mise run test
+      - name: Build
+        run: mise run build
+      - name: Check that dist is up to date
+        run: mise run check-dist
+      - name: Smoke test
+        run: mise run smoke
+      - name: Check the release (read-only)
+        env:
+          PREFLIGHT: "true"
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/release.sh
+
+  release:
+    name: Release
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+      DRY_RUN: ${{ inputs.dry-run }}
+      SKIP_E2E: ${{ inputs.skip-e2e }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Release
+        run: .github/scripts/release.sh

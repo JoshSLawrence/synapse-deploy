@@ -1,0 +1,8 @@
+# The Azure E2E workflow exists to run the action from the commit under test,
+# so it uses `uses: ./`. zizmor's suggested `$/` syntax is rejected by
+# actionlint 1.7.12 (the latest release). Switch to `$/` and delete this file
+# once actionlint supports it. Every other workflow still gets the audit.
+rules:
+  self-repository:
+    ignore:
+      - azure-e2e.yaml

@@ -1,0 +1,265 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "ls_e2e_storage_properties_typeProperties_url": {
+      "defaultValue": "https://stexample.dfs.core.windows.net",
+      "type": "string"
+    },
+    "workspaceName": {
+      "metadata": "Workspace name",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2019-06-01-preview",
+      "dependsOn": [],
+      "name": "[concat(parameters('workspaceName'), '/pl_e2e')]",
+      "properties": {
+        "activities": [
+          {
+            "dependsOn": [],
+            "name": "Wait",
+            "type": "Wait",
+            "typeProperties": {
+              "waitTimeInSeconds": 1
+            },
+            "userProperties": []
+          }
+        ],
+        "annotations": [],
+        "parameters": {
+          "p_bracket": {
+            "defaultValue": "[x]",
+            "type": "string"
+          },
+          "p_number_text": {
+            "defaultValue": "45.0",
+            "type": "string"
+          }
+        },
+        "policy": {
+          "elapsedTimeMetric": {}
+        }
+      },
+      "type": "Microsoft.Synapse/workspaces/pipelines"
+    },
+    {
+      "apiVersion": "2019-06-01-preview",
+      "dependsOn": [
+        "[concat(variables('workspaceId'), '/integrationRuntimes/ir-e2e')]"
+      ],
+      "name": "[concat(parameters('workspaceName'), '/ls_e2e_storage')]",
+      "properties": {
+        "annotations": [],
+        "connectVia": {
+          "referenceName": "ir-e2e",
+          "type": "IntegrationRuntimeReference"
+        },
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[parameters('ls_e2e_storage_properties_typeProperties_url')]"
+        }
+      },
+      "type": "Microsoft.Synapse/workspaces/linkedServices"
+    },
+    {
+      "apiVersion": "2019-06-01-preview",
+      "dependsOn": [
+        "[concat(variables('workspaceId'), '/pipelines/pl_e2e')]"
+      ],
+      "name": "[concat(parameters('workspaceName'), '/tr_e2e_daily')]",
+      "properties": {
+        "annotations": [],
+        "pipelines": [
+          {
+            "parameters": {},
+            "pipelineReference": {
+              "referenceName": "pl_e2e",
+              "type": "PipelineReference"
+            }
+          }
+        ],
+        "runtimeState": "Stopped",
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2030-01-01T06:00:00Z",
+            "timeZone": "UTC"
+          }
+        }
+      },
+      "type": "Microsoft.Synapse/workspaces/triggers"
+    },
+    {
+      "apiVersion": "2019-06-01-preview",
+      "dependsOn": [
+        "[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
+      ],
+      "name": "[concat(parameters('workspaceName'), '/ir-e2e')]",
+      "properties": {
+        "managedVirtualNetwork": {
+          "referenceName": "default",
+          "type": "ManagedVirtualNetworkReference"
+        },
+        "type": "Managed",
+        "typeProperties": {
+          "computeProperties": {
+            "dataFlowProperties": {
+              "computeType": "General",
+              "coreCount": 8,
+              "timeToLive": 0
+            },
+            "location": "AutoResolve"
+          }
+        }
+      },
+      "type": "Microsoft.Synapse/workspaces/integrationRuntimes"
+    },
+    {
+      "apiVersion": "2019-06-01-preview",
+      "dependsOn": [],
+      "name": "[concat(parameters('workspaceName'), '/default')]",
+      "properties": {},
+      "type": "Microsoft.Synapse/workspaces/managedVirtualNetworks"
+    },
+    {
+      "apiVersion": "2019-06-01-preview",
+      "dependsOn": [],
+      "name": "[concat(parameters('workspaceName'), '/lakedb_e2e')]",
+      "properties": {
+        "Ddls": [
+          {
+            "ActionType": "CREATE",
+            "NewEntity": {
+              "EntityType": "DATABASE",
+              "Name": "lakedb_e2e",
+              "ObjectId": "00000000-0000-0000-0000-000000000000",
+              "ObjectVersion": 1,
+              "Origin": {
+                "Type": "SPARK"
+              },
+              "Properties": {
+                "IsSyMSCDMDatabase": true
+              },
+              "PublishStatus": "PUBLISHED",
+              "Source": {
+                "Location": "abfss://e2e@stexample.dfs.core.windows.net/lakedb_e2e",
+                "Properties": {
+                  "FormatType": "csv",
+                  "LinkedServiceName": "ls_e2e_storage"
+                },
+                "Provider": "ADLS"
+              }
+            },
+            "OldEntity": null,
+            "Source": {
+              "Type": "SPARK"
+            }
+          },
+          {
+            "ActionType": "CREATE",
+            "NewEntity": {
+              "CreateTime": 0,
+              "Description": "",
+              "EntityType": "TABLE",
+              "IsRewriteEnabled": false,
+              "IsSharedEntity": false,
+              "LastAccessTime": 0,
+              "Name": "customers",
+              "Namespace": {
+                "DatabaseId": null,
+                "DatabaseName": "lakedb_e2e",
+                "SchemaName": null
+              },
+              "ObjectId": "00000000-0000-0000-0000-0000000000b1",
+              "ObjectVersion": 1,
+              "Origin": {
+                "Type": "SPARK"
+              },
+              "OriginObjectId": null,
+              "Owner": null,
+              "Properties": {
+                "Description": "",
+                "DisplayFolderInfo": "{\"name\":\"Others\",\"colorCode\":\"\"}",
+                "PrimaryKeys": "",
+                "spark.sql.sources.provider": "csv",
+                "spark.sql.sources.schema.numParts": "1",
+                "spark.sql.sources.schema.part.0": "{\"type\":\"struct\",\"fields\":[{\"name\":\"id\",\"type\":\"long\",\"nullable\":false,\"metadata\":{}}]}"
+              },
+              "PublishStatus": "PUBLISHED",
+              "Retention": 0,
+              "StorageDescriptor": {
+                "ColumnSetEntityName": "00000000-0000-0000-0000-0000000000a1",
+                "Columns": [
+                  {
+                    "Description": null,
+                    "Name": "id",
+                    "OriginDataTypeName": {
+                      "IsComplexType": false,
+                      "IsNullable": false,
+                      "Length": 0,
+                      "Precision": 0,
+                      "Properties": {
+                        "HIVE_TYPE_STRING": "long"
+                      },
+                      "Scale": 0,
+                      "TypeName": "long"
+                    }
+                  }
+                ],
+                "Compressed": false,
+                "Distribution": null,
+                "Format": {
+                  "FormatType": "csv",
+                  "InputFormat": "org.apache.hadoop.mapred.SequenceFileInputFormat",
+                  "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat",
+                  "Properties": {
+                    "FormatTypeSetToDatabaseDefault": false,
+                    "delimiter": ",",
+                    "firstRowAsHeader": "true",
+                    "header": "true",
+                    "multiLine": "false",
+                    "path": "abfss://e2e@stexample.dfs.core.windows.net/lakedb_e2e/customers",
+                    "serialization.format": "1"
+                  },
+                  "SerializeLib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+                },
+                "IsStoredAsSubdirectories": false,
+                "Properties": {
+                  "compression": "",
+                  "derivedModelAttributeInfo": "{\"attributeReferences\":{}}",
+                  "textinputformat.record.delimiter": ","
+                },
+                "SerDeInfo": null,
+                "Source": {
+                  "Location": "abfss://e2e@stexample.dfs.core.windows.net/lakedb_e2e/customers",
+                  "Properties": {
+                    "LinkedServiceName": "ls_e2e_storage",
+                    "LocationSetToDatabaseDefault": false
+                  },
+                  "Provider": "ADLS"
+                }
+              },
+              "TableType": "EXTERNAL",
+              "Temporary": false,
+              "ViewExpandedText": null,
+              "ViewOriginalText": null
+            },
+            "OldEntity": null,
+            "Source": {
+              "Type": "SPARK"
+            }
+          }
+        ]
+      },
+      "type": "Microsoft.Synapse/workspaces/databases"
+    }
+  ],
+  "variables": {
+    "workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+  }
+}

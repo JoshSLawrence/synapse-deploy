@@ -1,0 +1,268 @@
+# Deploys the fixture workspace to the test workspace, checks the result and
+# restores the workspace. Dispatch only: the azure-e2e environment holds the
+# test identity, so this must never run on pull requests. A successful run of
+# this workflow on a commit is what Release requires.
+name: Azure E2E
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+# One run at a time: the workspace is shared, and a second run would delete
+# the first one's artifacts.
+concurrency:
+  group: azure-e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: Azure E2E
+    runs-on: ubuntu-latest
+    environment: azure-e2e
+    # The sum of the step timeouts below (255), rounded up: the job timeout
+    # must never be what ends a step. A healthy run takes about 15 minutes.
+    timeout-minutes: 260
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SYNAPSE_WORKSPACE: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    steps:
+      - name: Start
+        timeout-minutes: 5
+        env:
+          STEP_DEBUG_VAR: ${{ vars.ACTIONS_STEP_DEBUG }}
+          RUNNER_DEBUG_VAR: ${{ vars.ACTIONS_RUNNER_DEBUG }}
+        run: .github/scripts/azure-e2e/steps.sh start
+
+      - name: Check out
+        timeout-minutes: 5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Azure login (OIDC)
+        timeout-minutes: 5
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Discover the storage target and prepare the templates
+        timeout-minutes: 5
+        id: prepare
+        run: .github/scripts/azure-e2e/prepare.sh "$E2E_DIR/templates"
+
+      - name: Snapshot the workspace before (it must be empty)
+        timeout-minutes: 5
+        id: before
+        run: .github/scripts/azure-e2e/snapshot.sh "$E2E_DIR/results/before.txt" --require-empty
+
+      - name: Deploy v1
+        timeout-minutes: 25
+        id: v1
+        uses: ./
+        with:
+          workspace-name: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
+          template-file: ${{ runner.temp }}/azure-e2e/templates/v1/TemplateForWorkspace.json
+          parameters-file: test/fixtures/azure-e2e/parameters.json
+          parameters: ${{ steps.prepare.outputs.params_v1 }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          deploy-managed-private-endpoints: "true"
+
+      - name: Check v1 (counts, artifacts, lake children)
+        timeout-minutes: 5
+        env:
+          DEPLOYED: ${{ steps.v1.outputs.deployed }}
+          SKIPPED: ${{ steps.v1.outputs.skipped }}
+          DELETED: ${{ steps.v1.outputs.deleted }}
+        run: .github/scripts/azure-e2e/steps.sh check-v1
+
+      - name: Redeploy v1 unchanged
+        timeout-minutes: 25
+        id: v1b
+        uses: ./
+        with:
+          workspace-name: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
+          template-file: ${{ runner.temp }}/azure-e2e/templates/v1/TemplateForWorkspace.json
+          parameters-file: test/fixtures/azure-e2e/parameters.json
+          parameters: ${{ steps.prepare.outputs.params_v1 }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          deploy-managed-private-endpoints: "true"
+
+      - name: Check the redeploy (counts, nothing changed)
+        timeout-minutes: 5
+        env:
+          DEPLOYED: ${{ steps.v1b.outputs.deployed }}
+          SKIPPED: ${{ steps.v1b.outputs.skipped }}
+          DELETED: ${{ steps.v1b.outputs.deleted }}
+        run: .github/scripts/azure-e2e/steps.sh check-redeploy
+
+      - name: Dry run v2 with delete-artifacts
+        timeout-minutes: 25
+        id: dry
+        uses: ./
+        with:
+          workspace-name: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
+          template-file: ${{ runner.temp }}/azure-e2e/templates/v2/TemplateForWorkspace.json
+          parameters-file: test/fixtures/azure-e2e/parameters-v2.json
+          parameters: ${{ steps.prepare.outputs.params_v2 }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          deploy-managed-private-endpoints: "true"
+          delete-artifacts: "true"
+          dry-run: "true"
+
+      - name: Check the dry run (planned deletions, nothing changed)
+        timeout-minutes: 5
+        env:
+          DEPLOYED: ${{ steps.dry.outputs.deployed }}
+          SKIPPED: ${{ steps.dry.outputs.skipped }}
+          DELETED: ${{ steps.dry.outputs.deleted }}
+        run: .github/scripts/azure-e2e/steps.sh check-dry
+
+      - name: Deploy v2 with delete-artifacts
+        timeout-minutes: 25
+        id: v2
+        uses: ./
+        with:
+          workspace-name: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
+          template-file: ${{ runner.temp }}/azure-e2e/templates/v2/TemplateForWorkspace.json
+          parameters-file: test/fixtures/azure-e2e/parameters-v2.json
+          parameters: ${{ steps.prepare.outputs.params_v2 }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          deploy-managed-private-endpoints: "true"
+          delete-artifacts: "true"
+
+      - name: Check v2 (deleted artifacts, deleted lake children)
+        timeout-minutes: 5
+        env:
+          DEPLOYED: ${{ steps.v2.outputs.deployed }}
+          SKIPPED: ${{ steps.v2.outputs.skipped }}
+          DELETED: ${{ steps.v2.outputs.deleted }}
+          DRY_DELETED: ${{ steps.dry.outputs.deleted }}
+        run: .github/scripts/azure-e2e/steps.sh check-v2
+
+      # Drop the next four steps if the test identity cannot start triggers:
+      # starting one takes a role beyond the minimal ones the README names,
+      # and widening the role for this check is not worth it.
+      - name: Start trigger tr_e2e_daily
+        timeout-minutes: 5
+        id: start-trigger
+        run: az synapse trigger start --workspace-name "$AZURE_SYNAPSE_WORKSPACE" --name tr_e2e_daily --output none
+
+      - name: Deploy a changed trigger while it is started (must fail)
+        timeout-minutes: 25
+        id: changed-trigger
+        continue-on-error: true
+        uses: ./
+        with:
+          workspace-name: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
+          template-file: ${{ runner.temp }}/azure-e2e/templates/v2-trigger/TemplateForWorkspace.json
+          parameters-file: test/fixtures/azure-e2e/parameters-v2.json
+          parameters: ${{ steps.prepare.outputs.params_v2 }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          deploy-managed-private-endpoints: "true"
+
+      - name: Stop trigger tr_e2e_daily
+        timeout-minutes: 5
+        if: always() && steps.start-trigger.outcome == 'success'
+        run: az synapse trigger stop --workspace-name "$AZURE_SYNAPSE_WORKSPACE" --name tr_e2e_daily --output none
+
+      - name: Check the started trigger refused the change
+        timeout-minutes: 5
+        env:
+          OUTCOME: ${{ steps.changed-trigger.outcome }}
+        run: .github/scripts/azure-e2e/steps.sh trigger-refused
+
+      # A federated token cannot be refreshed after about an hour, and the run
+      # may be long past that: sign in again before anything below.
+      - name: Cleanup - sign in again
+        timeout-minutes: 5
+        if: always() && steps.before.outcome == 'success'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Cleanup - stop the trigger
+        timeout-minutes: 5
+        if: always() && steps.before.outcome == 'success'
+        run: az synapse trigger stop --workspace-name "$AZURE_SYNAPSE_WORKSPACE" --name tr_e2e_daily --output none || true
+
+      - name: Cleanup - deploy an empty template with delete-artifacts
+        timeout-minutes: 25
+        id: empty
+        if: always() && steps.before.outcome == 'success'
+        continue-on-error: true
+        uses: ./
+        with:
+          workspace-name: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
+          template-file: ${{ runner.temp }}/azure-e2e/templates/empty/TemplateForWorkspace.json
+          parameters-file: test/fixtures/azure-e2e/parameters.json
+          parameters: ${{ steps.prepare.outputs.params_v1 }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          deploy-managed-private-endpoints: "true"
+          delete-artifacts: "true"
+
+      # The action never deletes integration runtimes, and a failed run may
+      # have stopped anywhere: this deletes whatever is left beyond the
+      # starting state, then fails the job unless the workspace matches it.
+      - name: Cleanup - delete what remains and verify
+        timeout-minutes: 30
+        if: always() && steps.before.outcome == 'success'
+        run: .github/scripts/azure-e2e/cleanup.sh "$E2E_DIR/results/before.txt" "$E2E_DIR/cleanup"
+
+      - name: Cleanup - fail if the empty-template deployment failed
+        timeout-minutes: 5
+        if: always() && steps.empty.outcome == 'failure'
+        run: .github/scripts/azure-e2e/steps.sh empty-failed
+
+  # The job's own log is served only once it has completed, so the check
+  # that nothing leaked into it runs as a second job.
+  log-check:
+    name: Azure E2E log check
+    needs: e2e
+    if: ${{ always() && needs.e2e.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out
+        timeout-minutes: 5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the Azure E2E log for leaked values
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: .github/scripts/azure-e2e/log-check.sh "$RUN_ID"
