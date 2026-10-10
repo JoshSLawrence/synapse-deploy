@@ -10,6 +10,7 @@ files are derived from it and keep its copyright header:
 
 - `src/arm.ts`
 - `src/defaults.ts`
+- `src/deletion.ts`
 - `src/kinds.ts`
 - `src/lakedb.ts`
 - `src/synapse.ts`

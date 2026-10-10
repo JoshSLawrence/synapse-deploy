@@ -8,7 +8,7 @@ import type { KindId } from './kinds.ts';
 // ordinary linked service and must be deployed.
 const DEFAULT_LINKED_SERVICE = /-workspacedefault(sqlserver|storage)$/i;
 const DEFAULT_CREDENTIAL = /^workspacesystemidentity$/i;
-const DEFAULT_ENDPOINT = /^synapse-ws-(sql|sqlondemand|kusto)--/i;
+const DEFAULT_ENDPOINT = /^synapse-ws-/i;
 const REMAPPABLE_LINKED_SERVICE = /^(.+)-WorkspaceDefault(Storage|SqlServer)$/i;
 
 /** Whether an artifact is one the workspace creates itself: never deployed, never deleted. */

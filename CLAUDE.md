@@ -2,9 +2,9 @@
 
 A GitHub Action (Node 24, ESM TypeScript) that deploys Azure Synapse workspace
 artifacts from an exported workspace template, through the workspace's
-development endpoint. It is being rewritten for v1.0.0: until the rewrite is
-finished `src/run.ts` validates the inputs and then fails with "not
-implemented yet".
+development endpoint. It is being rewritten for v1.0.0: the deploy, delete and
+dry-run phases are in `src/run.ts`; the documentation and the release workflow
+are still to come.
 
 ## Hard rule
 
@@ -59,6 +59,7 @@ src/
   auth.ts
   cloud.ts
   defaults.ts
+  deletion.ts
   exit_guard.ts
   expression.ts
   graph.ts
@@ -69,6 +70,7 @@ src/
   lro.ts
   main.ts
   mask.ts
+  report.ts
   run.ts
   synapse.ts
   template.ts
