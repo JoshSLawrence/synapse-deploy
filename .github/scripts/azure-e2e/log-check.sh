@@ -36,10 +36,21 @@ run_id="${1:?usage: log-check.sh <run-id>}"
 : "${GH_REPO:?set GH_REPO}"
 : "${GITHUB_SHA:?set GITHUB_SHA}"
 
-# Perl regexes; a log line matching one is skipped. Add a pattern only for a
-# line of the runner or azure/login that carries a GUID or host of its own,
-# with a comment naming the line it matches. None is needed so far.
-ALLOW_LINES=()
+# Perl regexes for runner and actions/checkout boilerplate that carries a
+# GUID of its own. Each match is cut out of the line before the scan, not
+# the whole line skipped, so an Azure ID elsewhere on the line is still
+# caught. Anchor every pattern on the exact context; never allow a bare GUID.
+GUID='[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}'
+ALLOW_CONTEXTS=(
+  # "Worker ID: {<guid>}", printed by the runner's job setup.
+  "Worker ID: \\{${GUID}\\}"
+  # A per-step directory directly under the runner's temp folder, e.g.
+  # "Temporarily overriding HOME='/home/runner/work/_temp/<guid>'" and
+  # "/github/runner_temp/<guid>" in container mounts.
+  "(?:/_temp|runner_temp)/${GUID}(?=[/'\"\\s]|\$)"
+  # actions/checkout's credentials file: "git-credentials-<guid>.config".
+  "git-credentials-${GUID}\\.config"
+)
 
 job_name="Azure E2E"
 marker_start="Azure E2E at ${GITHUB_SHA}"
@@ -80,14 +91,14 @@ if [ "$complete" -ne 1 ]; then
 fi
 
 # Prints "<category> <line number>" per finding, never the matched text.
-allow="$(printf '%s\n' "${ALLOW_LINES[@]+"${ALLOW_LINES[@]}"}")"
+allow="$(printf '%s\n' "${ALLOW_CONTEXTS[@]}")"
 LOGCHECK_ALLOW="$allow" perl -e '
   my @allow = grep { length } split /\n/, ($ENV{LOGCHECK_ALLOW} // "");
   my $zero = qr/^00000000-0000-0000-0000-0000000000[0-9a-f]{2}$/i;
   # "***" is the runner mask; the rest are the documentation placeholders.
   my %ok = map { $_ => 1 } ("***", "myworkspace", "stexample", "rg-example");
   while (my $line = <STDIN>) {
-    next if grep { $line =~ /$_/ } @allow;
+    $line =~ s/$_//gi for @allow;
     my %hit;
     for my $g ($line =~ /([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})/gi) {
       $hit{"guid"} = 1 unless $g =~ $zero;

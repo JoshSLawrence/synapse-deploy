@@ -220,8 +220,7 @@ protected by a ruleset (the owner is a bypass actor); `vMAJOR` is not.
 `Azure E2E` (`.github/workflows/azure-e2e.yaml`) deploys the fixtures in
 `test/fixtures/azure-e2e/` to a real workspace with the checked-out commit's
 committed `dist/` (`uses: ./`), checks counts and state after each step
-(deploy, redeploy, dry run, deploy with deletion, a started trigger refusing a
-change), then restores the workspace and fails if it does not end as it began.
+(deploy, redeploy, dry run, deploy with deletion), then restores the workspace and fails if it does not end as it began.
 A second job, `log-check.sh`, scans the finished job log.
 
 - It runs in the `azure-e2e` environment (deployment branches: `main` only,
@@ -236,7 +235,7 @@ A second job, `log-check.sh`, scans the finished job log.
 - Every step of the e2e job has its own `timeout-minutes`, and the job's is
   their sum rounded up, so the job timeout never ends a step (a cancelled or
   timed-out job's remaining steps get only a few minutes). A healthy run takes
-  about 15 minutes; the caps are only for hangs. A deploy step gets 25 minutes,
+  about 5 minutes; the caps are only for hangs. A deploy step gets 25 minutes,
   longer than the action's own 20 minute operation deadline, so the action
   reports its error before the runner kills it. Raise the job timeout when you
   add a step. The cleanup signs in again first, because a federated token
@@ -250,13 +249,16 @@ A second job, `log-check.sh`, scans the finished job log.
   or resource-group name never appears: those rely on the runner's
   case-sensitive secret masking. Read the first public log and the job
   summary by hand. Allow-listing a real value to silence a finding is a
-  hard-rule violation; its allow-list takes runner and `azure/login`
-  boilerplate only.
-- The test identity has the narrowed roles the README names. If lake database
-  DDL or the cleanup fails under them, that is a README finding: document the
-  role the live test actually needs rather than widening it silently. The
-  started-trigger steps are the block designed to be dropped if the identity
-  cannot start triggers.
+  hard-rule violation; its allow-list takes runner and checkout boilerplate
+  GUIDs only (the worker ID, per-step directories under the temp folder and
+  checkout's `git-credentials-<guid>.config`), each cut out of the line by an
+  anchored pattern so any other ID on the line is still reported.
+- The test identity runs with Synapse Artifact Publisher, Synapse Linked Data
+  Manager and Contributor on the workspace, and cannot start triggers, so the
+  e2e does not test a started trigger (the fake-server tests cover the
+  refusal shapes). If something else fails under these roles, that is a README
+  finding: document the role the live test actually needs; drop the check
+  rather than widening the role silently.
 - `build-fixtures.sh` regenerates the exported templates in
   `test/fixtures/azure-e2e/` from its `workspace/` Git folder; set
   `ACTIONS_DIR` to a checkout of `JoshSLawrence/actions`.
