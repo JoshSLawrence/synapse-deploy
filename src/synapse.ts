@@ -4,7 +4,13 @@
 import * as core from '@actions/core';
 import { HttpError, responseError } from './http.ts';
 import { artifactPath, DEFAULT_API_VERSION } from './kinds.ts';
-import { asRecord, awaitDataPlaneDeploy, awaitDelete, awaitEndpointDeploy } from './lro.ts';
+import {
+  asRecord,
+  awaitDataPlaneDeploy,
+  awaitDelete,
+  awaitEndpointDelete,
+  awaitEndpointDeploy,
+} from './lro.ts';
 import { deployLakeDatabase } from './lakedb.ts';
 import type { Kind } from './kinds.ts';
 import type { Response } from './http.ts';
@@ -134,7 +140,8 @@ export async function deleteArtifact(ctx: SynapseContext, kind: Kind, name: stri
       ctx.dataPlane + artifactPath(kind, name),
       ctx.scope,
     );
-    await awaitDelete(ctx, del, { scope: ctx.scope, label });
+    const wait = kind.plane === 'endpoint' ? awaitEndpointDelete : awaitDelete;
+    await wait(ctx, del, { scope: ctx.scope, label });
   } catch (err) {
     throw withTriggerHint(kind, err);
   }

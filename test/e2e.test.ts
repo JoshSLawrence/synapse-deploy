@@ -313,7 +313,7 @@ describe('run: failures', () => {
 
     // Everything started was followed to its end: each operation polled to its final answer.
     const polls = new Map<string, number>();
-    for (const r of fake.requests.filter((q) => q.path.startsWith('/operationResults/'))) {
+    for (const r of fake.requests.filter((q) => /^\/(notebook)?operationResults\//i.test(q.path))) {
       polls.set(r.path, (polls.get(r.path) ?? 0) + 1);
     }
     assert.equal(polls.size, puts(fake).length);

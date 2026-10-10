@@ -7,27 +7,43 @@ import type { TokenProvider } from '../../src/auth.ts';
 /**
  * An in-memory stand-in for a Synapse development endpoint and the slice of
  * Azure Resource Manager used for integration runtimes, on 127.0.0.1. It
- * encodes this project's assumptions about the services (design Appendix A);
- * the default modes are meant to be changed to what a real run shows.
- * Generic names only.
+ * encodes the services' behaviour as observed on live Azure (see
+ * DEFAULT_CONFIG); the other modes keep shapes the deployer must still
+ * tolerate. Generic names only.
  */
 
 const NO_MANAGED_VNET_MESSAGE =
   'The workspace does not have a managed virtual network associated with it.';
-// The update message is what Synapse answers; the delete one is assumed to
-// follow the same wording.
-const TRIGGER_UPDATE_MESSAGE =
-  'Cannot update enabled Trigger; the trigger needs to be disabled first.';
-const TRIGGER_DELETE_MESSAGE =
-  'Cannot delete enabled Trigger; the trigger needs to be disabled first.';
+// Synapse answers this text, trailing space included, to an update and to a
+// delete of a started trigger alike.
+const TRIGGER_ENABLED_MESSAGE =
+  'Cannot update enabled Trigger; the trigger needs to be disabled first. ';
+// What the service sends on every operation poll that is not final.
+const RETRY_AFTER = '10';
+const IR_TYPE = 'Microsoft.Synapse/workspaces/integrationRuntimes';
+// Collections whose GET-after-delete answers `<Kind>NotFound`.
+const NOT_FOUND_CODES: Record<string, string> = {
+  pipelines: 'PipelineNotFound',
+  triggers: 'TriggerNotFound',
+  datasets: 'DatasetNotFound',
+  linkedservices: 'LinkedServiceNotFound',
+  dataflows: 'DataFlowNotFound',
+};
 const ZERO_GUID = '00000000-0000-0000-0000-000000000000';
 const DATA_TOKEN = 'fake-data-token';
 const ARM_TOKEN = 'fake-arm-token';
 
 export interface FakeConfig {
-  /** Data-plane PUT: `sync` (200 + resource), `lro` (202 + operationId + Location) or `lro-no-location`. */
+  /**
+   * Data-plane PUT: `lro` (202 + operationId + same-host Location), `sync`
+   * (200 + resource) or `lro-no-location` (202 + operationId, polled at the
+   * root operationResults, which notebooks do not serve).
+   */
   putMode: 'sync' | 'lro' | 'lro-no-location';
-  /** DELETE: `sync` (200) or `lro` (202 + Location). */
+  /**
+   * DELETE: `lro` (202 + Location; an endpoint answers 202 without one and
+   * lingers, see `endpointDeletePolls`) or `sync` (200).
+   */
   deleteMode: 'sync' | 'lro';
   /** What an `lro` delete's operation answers when finished. */
   deleteCompletion: 'ok' | 'not-found';
@@ -42,12 +58,37 @@ export interface FakeConfig {
   endpointPolls: number;
   endpointFinalState: 'Succeeded' | 'Failed';
   /**
-   * Integration runtime PUT: `async-operation` (201 + Azure-AsyncOperation),
-   * `location-only` (202 + Location), `operation-id` (202 + operationId and no
-   * Location, served under the workspace path), `provisioning-body` (200 + Provisioning,
-   * then GETs of the resource) or `sync` (200 + Succeeded).
+   * GETs of a deleted endpoint that still answer 200 `Succeeded` before the
+   * 404; 0 removes it at once.
    */
-  armMode: 'async-operation' | 'location-only' | 'operation-id' | 'provisioning-body' | 'sync';
+  endpointDeletePolls: number;
+  /**
+   * Started trigger PUT: `lro-failed` (202, then the operation ends Failed
+   * with TriggerEnabledCannotUpdate) or `sync-400` (400 on the PUT).
+   */
+  triggerPutMode: 'lro-failed' | 'sync-400';
+  /**
+   * Started trigger DELETE: `lro-failed` (202, then the operation ends Failed
+   * with DeleteDataFactoryResourceOrchestrationError) or `sync-409` (409 with
+   * a `{"Message"}` body). Both happen on Azure.
+   */
+  triggerDeleteMode: 'lro-failed' | 'sync-409';
+  /**
+   * Integration runtime PUT: `workspace-location` (202 + operationId + a
+   * Location under the workspace path; DELETE is an operation too),
+   * `async-operation` (201 + Azure-AsyncOperation), `location-only` (202 +
+   * Location), `operation-id` (202 + operationId and no Location, served under
+   * the workspace path), `provisioning-body` (200 + Provisioning, then GETs of
+   * the resource) or `sync` (200 + Succeeded). Every mode but the first
+   * deletes synchronously.
+   */
+  armMode:
+    | 'workspace-location'
+    | 'async-operation'
+    | 'location-only'
+    | 'operation-id'
+    | 'provisioning-body'
+    | 'sync';
   /** How many times an ARM operation or resource GET answers "in progress". */
   armPolls: number;
   /** Delay before every answer, so that concurrent operations overlap. */
@@ -90,6 +131,8 @@ interface Stored {
   gets: number;
   /** Ends the write's operation when provisioning finishes (endpoints, ARM). */
   release?: () => void;
+  /** A deleted endpoint: GETs left that still answer 200 before the 404. */
+  deleting?: number;
 }
 
 interface Operation {
@@ -99,6 +142,14 @@ interface Operation {
   flavor: 'data' | 'async' | 'location';
   body: unknown;
   failMessage: string | undefined;
+  failCode?: string;
+  /** The 202 body of a poll that is not final. */
+  inProgress?: unknown;
+  /** Where the operation is served, repeated on its 202 polls. */
+  location?: string;
+  retryAfter?: string;
+  /** Notebooks poll at /notebookOperationResults; the root collection refuses them. */
+  notebook?: boolean;
   goneAfter: boolean;
   done: boolean;
   end: () => void;
@@ -155,6 +206,9 @@ export interface FakeSynapse {
   close(): Promise<void>;
 }
 
+// The defaults are the response shapes observed on live Azure on 2026-10-10;
+// the other modes exist so tests can still exercise shapes the deployer must
+// tolerate.
 const DEFAULT_CONFIG: FakeConfig = {
   putMode: 'lro',
   deleteMode: 'lro',
@@ -165,7 +219,10 @@ const DEFAULT_CONFIG: FakeConfig = {
   endpointPutMode: 'sync',
   endpointPolls: 1,
   endpointFinalState: 'Succeeded',
-  armMode: 'async-operation',
+  endpointDeletePolls: 4,
+  triggerPutMode: 'lro-failed',
+  triggerDeleteMode: 'lro-failed',
+  armMode: 'workspace-location',
   armPolls: 1,
   latencyMs: 0,
 };
@@ -277,6 +334,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     spec: Partial<Operation> & Pick<Operation, 'flavor' | 'body'>,
     name: string,
     writing: Writing,
+    pathFor?: (id: string) => string,
   ): string {
     const id = `op${nextId++}`;
     writing.adopted = true;
@@ -288,9 +346,54 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       goneAfter: false,
       done: false,
       end,
+      ...(pathFor === undefined
+        ? {}
+        : { location: `${origin}${pathFor(id)}`, retryAfter: RETRY_AFTER }),
       ...spec,
     });
     return id;
+  }
+
+  // The 404 each collection answers. Lake databases have their own shape.
+  function notFound(res: http.ServerResponse, collection: string, name: string): void {
+    const lower = collection.toLowerCase();
+    const message = `${collection}/${name} was not found`;
+    const code = NOT_FOUND_CODES[lower];
+    if (code !== undefined) {
+      send(res, 404, { code, message });
+    } else if (lower === 'sqlscripts' || lower === 'notebooks') {
+      send(res, 404, { code: '404', details: null, error: null, message, target: null });
+    } else if (collection === endpointCollection) {
+      send(res, 404, {
+        error: {
+          code: 'UnknownError',
+          message: JSON.stringify({ ErrorType: 'PrivateEndpointNotFound', Message: message }),
+        },
+      });
+    } else {
+      error(res, 404, 'NotFound', message);
+    }
+  }
+
+  function lakeNotFound(res: http.ServerResponse, entityType: string, name: string): void {
+    send(res, 404, {
+      Code: 'ResourceNotFound',
+      Message: `Resource not found. ResourceId: '${entityType}-${name}, Version: '.`,
+    });
+  }
+
+  // The acknowledgement of a lake database write. The values are placeholders:
+  // only the PascalCase key set was observed.
+  function lakeAck(entityType: string, name: string): Record<string, unknown> {
+    return {
+      DDLType: 'Create',
+      EntityName: name,
+      EntityType: entityType,
+      ObjectId: ZERO_GUID,
+      ObjectVersion: 1,
+      OriginObjectId: ZERO_GUID,
+      PublishStatus: 'Published',
+    };
   }
 
   function page<T>(items: T[], skip: number): { slice: T[]; next: number | undefined } {
@@ -334,6 +437,27 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     send(res, 200, body);
   }
 
+  // The keys a data-plane write answers with next to its operationId. The
+  // values are placeholders: only the key set was observed.
+  function acceptedBody(
+    collection: string,
+    name: string,
+    id: string,
+    withArtifactId: boolean,
+  ): Record<string, unknown> {
+    return {
+      ...(withArtifactId ? { artifactId: ZERO_GUID } : {}),
+      changed: true,
+      created: '2026-10-10T00:00:00Z',
+      id: `/${collection}/${name}`,
+      name,
+      operationId: id,
+      recordId: 1,
+      state: 'Accepted',
+      type: `Microsoft.Synapse/workspaces/${collection}`,
+    };
+  }
+
   function putAnswer(
     res: http.ServerResponse,
     collection: string,
@@ -342,22 +466,50 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     apiVersion: string,
     base: string,
     writing: Writing,
+    failure?: { code: string; message: string },
   ): void {
     if (mode === 'sync') {
       send(res, 200, resource(collection, stored));
       return;
     }
+    if (base !== '') {
+      // Endpoints: an operation is a non-default shape, kept bare.
+      const id = newOperation(
+        { flavor: 'data', body: resource(collection, stored), base },
+        stored.name,
+        writing,
+      );
+      send(
+        res,
+        202,
+        { operationId: id },
+        mode === 'lro'
+          ? { Location: `${base}/operationResults/${id}?api-version=${apiVersion}` }
+          : {},
+      );
+      return;
+    }
+    const notebook = collection === 'notebooks';
     const id = newOperation(
-      { flavor: 'data', body: resource(collection, stored), base },
+      {
+        flavor: 'data',
+        body: resource(collection, stored),
+        notebook,
+        inProgress: { status: 'InProgress' },
+        ...(failure === undefined ? {} : { failCode: failure.code, failMessage: failure.message }),
+      },
       stored.name,
       writing,
+      (opId) =>
+        `${notebook ? '/notebookOperationResults' : '/operationResults'}/${opId}?api-version=${apiVersion}`,
     );
+    const op = operations.get(id);
     send(
       res,
       202,
-      { operationId: id },
-      mode === 'lro'
-        ? { Location: `${base}/operationResults/${id}?api-version=${apiVersion}` }
+      acceptedBody(collection, stored.name, id, true),
+      mode === 'lro' && op?.location !== undefined
+        ? { Location: op.location, 'Retry-After': RETRY_AFTER }
         : {},
     );
   }
@@ -400,7 +552,18 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     const existing = items.get(key);
     if (method === 'GET') {
       if (existing === undefined) {
-        error(res, 404, 'NotFound', `${collection}/${name} was not found`);
+        notFound(res, collection, name);
+        return;
+      }
+      if (existing.deleting !== undefined) {
+        // A deleted endpoint is still served for a while, then it is gone.
+        if (existing.deleting <= 0) {
+          items.delete(key);
+          notFound(res, collection, name);
+          return;
+        }
+        existing.deleting--;
+        send(res, 200, resource(collection, existing));
         return;
       }
       if (isEndpoint) {
@@ -420,9 +583,31 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     }
     if (method === 'PUT') {
       const written = record(structuredClone(body));
-      if (collection === 'triggers' && existing?.body.properties !== undefined) {
-        if (record(existing.body.properties).runtimeState === 'Started') {
-          error(res, 400, 'TriggerEnabledCannotUpdate', TRIGGER_UPDATE_MESSAGE);
+      if (
+        collection === 'triggers' &&
+        existing !== undefined &&
+        record(existing.body.properties).runtimeState === 'Started'
+      ) {
+        const failure = { code: 'TriggerEnabledCannotUpdate', message: TRIGGER_ENABLED_MESSAGE };
+        if (config.triggerPutMode === 'sync-400') {
+          error(res, 400, failure.code, failure.message);
+        } else {
+          putAnswer(res, collection, existing, 'lro', apiVersion, '', writing, failure);
+        }
+        return;
+      }
+      if (isEndpoint && existing !== undefined && existing.deleting === undefined) {
+        const withoutState = (properties: unknown) => {
+          const rest = { ...record(properties) };
+          delete rest.provisioningState;
+          return JSON.stringify(rest);
+        };
+        if (
+          record(existing.body.properties).provisioningState === 'Succeeded' &&
+          withoutState(existing.body.properties) === withoutState(written.properties)
+        ) {
+          // Nothing to change: the service answers at once, already provisioned.
+          send(res, 200, resource(collection, existing));
           return;
         }
       }
@@ -453,17 +638,38 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       return;
     }
     if (method === 'DELETE') {
-      if (existing === undefined) {
-        error(res, 404, 'NotFound', `${collection}/${name} was not found`);
+      if (existing === undefined || existing.deleting === 0) {
+        if (existing !== undefined) {
+          items.delete(key);
+        }
+        notFound(res, collection, name);
         return;
       }
       if (record(existing.body.properties).runtimeState === 'Started') {
-        error(res, 400, 'TriggerEnabledCannotDelete', TRIGGER_DELETE_MESSAGE);
+        if (config.triggerDeleteMode === 'sync-409') {
+          send(res, 409, { Message: TRIGGER_ENABLED_MESSAGE });
+        } else {
+          finishDelete(res, collection, name, apiVersion, '', writing, {
+            failCode: 'DeleteDataFactoryResourceOrchestrationError',
+            failMessage: TRIGGER_ENABLED_MESSAGE,
+            goneAfter: false,
+          });
+        }
         return;
       }
       existing.release?.();
+      if (isEndpoint && config.deleteMode === 'lro') {
+        // 202 with no Location and no body; the endpoint lingers, see GET.
+        if (config.endpointDeletePolls > 0) {
+          existing.deleting = config.endpointDeletePolls;
+        } else {
+          items.delete(key);
+        }
+        send(res, 202);
+        return;
+      }
       items.delete(key);
-      finishDelete(res, name, apiVersion, isEndpoint ? ENDPOINT_BASE : '', writing);
+      finishDelete(res, collection, name, apiVersion, isEndpoint ? ENDPOINT_BASE : '', writing);
       return;
     }
     error(res, 405, 'MethodNotAllowed', method);
@@ -471,32 +677,46 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
 
   function finishDelete(
     res: http.ServerResponse,
+    collection: string,
     name: string,
     apiVersion: string,
     base: string,
     writing: Writing,
+    extra: Partial<Operation> = {},
   ): void {
-    if (config.deleteMode === 'sync') {
+    // A failing operation is the service's answer however deletes usually go.
+    if (config.deleteMode === 'sync' && extra.failMessage === undefined) {
       send(res, 200, {});
       return;
     }
+    // Notebook deletes are assumed to poll under /notebookOperationResults like
+    // their PUTs; only the PUT was observed.
+    const notebook = collection === 'notebooks';
     const id = newOperation(
       {
         flavor: 'data',
-        body: { status: 'Succeeded' },
+        // The operation ends 200 with an empty body.
+        body: undefined,
+        inProgress: { status: 'InProgress' },
         goneAfter: config.deleteCompletion === 'not-found',
+        notebook,
         base,
+        ...extra,
       },
       name,
       writing,
+      (opId) =>
+        `${notebook ? '/notebookOperationResults' : `${base}/operationResults`}/${opId}?api-version=${apiVersion}`,
     );
-    send(res, 202, undefined, {
-      Location: `${base}/operationResults/${id}?api-version=${apiVersion}`,
+    const accepted = acceptedBody(collection, name, id, false);
+    send(res, 202, base === '' ? accepted : undefined, {
+      Location: operations.get(id)?.location ?? '',
     });
   }
 
   const OPERATION_FLAVOR = {
     operationresults: 'data',
+    notebookoperationresults: 'data',
     asyncoperations: 'async',
     armoperations: 'location',
   } as const;
@@ -513,8 +733,16 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     if (
       op === undefined ||
       op.flavor !== OPERATION_FLAVOR[collection] ||
-      (collection === 'operationresults' && op.base !== base)
+      (collection !== 'asyncoperations' && collection !== 'armoperations' && op.base !== base)
     ) {
+      error(res, 404, 'NotFound', `Operation ${id} was not found`);
+      return;
+    }
+    if (op.notebook === true && collection === 'operationresults') {
+      error(res, 400, 'UnsupportedOperation', 'Notebook operations are not served here.');
+      return;
+    }
+    if (op.notebook !== true && collection === 'notebookoperationresults') {
       error(res, 404, 'NotFound', `Operation ${id} was not found`);
       return;
     }
@@ -523,7 +751,14 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       if (op.flavor === 'async') {
         send(res, 200, { status: 'InProgress' });
       } else {
-        send(res, 202);
+        send(
+          res,
+          202,
+          op.inProgress,
+          op.location === undefined
+            ? {}
+            : { Location: op.location, 'Retry-After': op.retryAfter ?? RETRY_AFTER },
+        );
       }
       return;
     }
@@ -534,7 +769,10 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     if (op.goneAfter) {
       error(res, 404, 'NotFound', `Operation ${id} is gone`);
     } else if (op.failMessage !== undefined) {
-      send(res, 200, { status: 'Failed', error: { code: 'Failed', message: op.failMessage } });
+      send(res, 200, {
+        status: 'Failed',
+        error: { code: op.failCode ?? 'Failed', message: op.failMessage },
+      });
     } else if (op.flavor === 'async') {
       send(res, 200, { status: 'Succeeded' });
     } else {
@@ -580,7 +818,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     if (childKind === undefined) {
       if (method === 'GET') {
         if (db === undefined) {
-          error(res, 404, 'NotFound', `Database ${dbName} was not found`);
+          lakeNotFound(res, 'DATABASE', dbName);
         } else {
           send(res, 200, lakeItem('DATABASE', db.name, db.body, [db.name]));
         }
@@ -592,12 +830,10 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
           tables: db?.tables ?? new Map<string, Stored>(),
           relationships: db?.relationships ?? new Map<string, Stored>(),
         });
-        // The real PUT response shape is unverified; src/lro.ts reads only the
-        // top-level name and status, which this and the nested shape both carry.
-        send(res, 200, { name: dbName, ...record(written.properties) });
+        send(res, 200, lakeAck('DATABASE', dbName));
       } else if (method === 'DELETE') {
         if (db === undefined) {
-          error(res, 404, 'NotFound', `Database ${dbName} was not found`);
+          lakeNotFound(res, 'DATABASE', dbName);
         } else {
           databases.delete(dbName.toLowerCase());
           send(res, 200, {});
@@ -608,7 +844,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       return;
     }
     if (db === undefined) {
-      error(res, 404, 'NotFound', `Database ${dbName} was not found`);
+      lakeNotFound(res, 'DATABASE', dbName);
       return;
     }
     if (childKind !== 'tables' && childKind !== 'relationships') {
@@ -635,19 +871,17 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
         body: record(written.properties),
         gets: 0,
       });
-      // The real PUT response shape is unverified; src/lro.ts reads only the
-      // top-level name and status, which this and the nested shape both carry.
-      send(res, 200, { name: childName, ...record(written.properties) });
+      send(res, 200, lakeAck(childKind === 'tables' ? 'TABLE' : 'RELATIONSHIP', childName));
     } else if (method === 'DELETE') {
       if (children.delete(childName.toLowerCase())) {
         send(res, 200, {});
       } else {
-        error(res, 404, 'NotFound', `${childKind}/${childName} was not found`);
+        lakeNotFound(res, childKind === 'tables' ? 'TABLE' : 'RELATIONSHIP', childName);
       }
     } else if (method === 'GET') {
       const child = children.get(childName.toLowerCase());
       if (child === undefined) {
-        error(res, 404, 'NotFound', `${childKind}/${childName} was not found`);
+        lakeNotFound(res, childKind === 'tables' ? 'TABLE' : 'RELATIONSHIP', childName);
       } else {
         send(
           res,
@@ -682,7 +916,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     const existing = integrationRuntimes.get(key);
     if (method === 'GET') {
       if (existing === undefined) {
-        error(res, 404, 'ResourceNotFound', `${name} was not found`);
+        error(res, 404, 'NotFound', `${name} was not found`);
         return;
       }
       existing.gets++;
@@ -697,6 +931,18 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     if (method === 'DELETE') {
       existing?.release?.();
       integrationRuntimes.delete(key);
+      if (config.armMode === 'workspace-location' && existing !== undefined) {
+        const base = `/${segments.slice(0, -2).join('/')}`;
+        const id = newOperation(
+          { flavor: 'data', body: undefined, base, remaining: config.armPolls },
+          name,
+          writing,
+          (opId) => `${base}/operationResults/${opId}?api-version=${armVersion}`,
+        );
+        // Unlike the PUT's, the DELETE's answer carries no Retry-After.
+        send(res, 202, undefined, { Location: operations.get(id)?.location ?? '' });
+        return;
+      }
       send(res, 200, {});
       return;
     }
@@ -714,6 +960,28 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     integrationRuntimes.set(key, stored);
     const answer = { id: pathname, ...stored.body, name };
     switch (config.armMode) {
+      case 'workspace-location': {
+        const base = `/${segments.slice(0, -2).join('/')}`;
+        const done = {
+          etag: `"${ZERO_GUID}"`,
+          type: IR_TYPE,
+          ...answer,
+          properties: { ...record(stored.body.properties), provisioningState: 'Succeeded' },
+        };
+        const id = newOperation(
+          { flavor: 'data', body: done, base, remaining: config.armPolls },
+          name,
+          writing,
+          (opId) => `${base}/operationResults/${opId}?api-version=${armVersion}`,
+        );
+        send(
+          res,
+          202,
+          { id: pathname, name, type: IR_TYPE, operationId: id },
+          { Location: operations.get(id)?.location ?? '', 'Retry-After': RETRY_AFTER },
+        );
+        return;
+      }
       case 'sync':
         send(res, 200, answer);
         return;
@@ -833,6 +1101,8 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       (segment) => segment.toLowerCase() === 'operationresults',
     );
     if (first === 'asyncoperations' || first === 'armoperations') {
+      handleOperation(res, segments[1] ?? '', first, '');
+    } else if (first === 'notebookoperationresults') {
       handleOperation(res, segments[1] ?? '', first, '');
     } else if (operationAt >= 0) {
       const base = operationAt === 0 ? '' : `/${segments.slice(0, operationAt).join('/')}`;

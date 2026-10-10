@@ -717,6 +717,7 @@ describe('errors', () => {
   it('reads error.message, then message, then the raw text', () => {
     assert.equal(serviceMessageOf('{"error":{"message":"a"}}'), 'a');
     assert.equal(serviceMessageOf('{"message":"b"}'), 'b');
+    assert.equal(serviceMessageOf('{"Code":"X","Message":"capitalised"}'), 'capitalised');
     assert.equal(serviceMessageOf('plain'), 'plain');
     assert.equal(serviceMessageOf('{"error":"c"}'), '{"error":"c"}');
   });

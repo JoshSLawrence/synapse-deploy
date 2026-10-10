@@ -82,7 +82,12 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
   for (const mode of ['sync', 'lro', 'lro-no-location'] as const) {
     it(`deploys every kind in ${mode} mode and polls only when told`, async () => {
       const { server: fake, ctx } = await start({ putMode: mode });
-      for (const candidate of dataKinds) {
+      // The root operationResults collection refuses notebooks, so without a
+      // Location they have no place to poll.
+      const deployed = dataKinds.filter(
+        (candidate) => mode !== 'lro-no-location' || candidate.collection !== 'notebooks',
+      );
+      for (const candidate of deployed) {
         await deployArtifact(ctx, candidate, 'my artifact', body('my artifact'));
         const stored = fake.get(candidate.collection, 'my artifact');
         assert.deepEqual(stored, body('my artifact'), candidate.id);
@@ -90,7 +95,7 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
       const puts = fake.requests.filter((r) => r.method === 'PUT');
       assert.deepEqual(
         puts.map((r) => r.path),
-        dataKinds.map((candidate) => `/${candidate.collection}/my%20artifact`),
+        deployed.map((candidate) => `/${candidate.collection}/my%20artifact`),
       );
       assert.ok(puts.every((r) => r.query === '?api-version=2019-06-01-preview'));
       assert.ok(puts.every((r) => r.authorization === 'Bearer fake-data-token'));
@@ -146,19 +151,74 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
     assert.match(err.message, /a referenced dataset does not exist/);
   });
 
-  it('adds the trigger hint when an enabled trigger blocks a PUT or a DELETE', async () => {
+  const HINT = /Stop the trigger first; the deployer does not start or stop triggers\./;
+
+  it('adds the trigger hint when the PUT of an enabled trigger ends Failed', async () => {
     const { server: fake, ctx } = await start();
     fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
     const put = await rejection(
       deployArtifact(ctx, kind('triggers'), 'tr_hourly', body('tr_hourly')),
     );
-    assert.match(put.message, /disabled first/);
-    assert.match(
-      put.message,
-      /Stop the trigger first; the deployer does not start or stop triggers\./,
-    );
+    assert.match(put.message, /TriggerEnabledCannotUpdate|disabled first/);
+    assert.match(put.message, HINT);
+  });
+
+  it('adds the trigger hint when the DELETE of an enabled trigger ends Failed', async () => {
+    const { server: fake, ctx } = await start();
+    fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
     const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
-    assert.match(del.message, /Stop the trigger first/);
+    assert.match(del.message, /disabled first/);
+    assert.match(del.message, HINT);
+    assert.deepEqual(fake.names('triggers'), ['tr_hourly']);
+  });
+
+  it('adds the trigger hint when the service refuses synchronously: 400 on the PUT, 409 on the DELETE', async () => {
+    const { server: fake, ctx } = await start({
+      triggerPutMode: 'sync-400',
+      triggerDeleteMode: 'sync-409',
+    });
+    fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
+    const put = await rejection(
+      deployArtifact(ctx, kind('triggers'), 'tr_hourly', body('tr_hourly')),
+    );
+    assert.match(put.message, /disabled first/);
+    assert.match(put.message, HINT);
+    const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+    assert.match(del.message, /status 409: Cannot update enabled Trigger/);
+    assert.match(del.message, HINT);
+  });
+
+  it('still fails with the hint when deletes are synchronous or operations are gone', async () => {
+    for (const config of [
+      { deleteMode: 'sync' },
+      { deleteCompletion: 'not-found' },
+    ] as Partial<FakeConfig>[]) {
+      const { server: fake, ctx } = await start(config);
+      fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
+      const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+      assert.match(del.message, /disabled first/);
+      assert.match(del.message, HINT);
+      assert.deepEqual(fake.names('triggers'), ['tr_hourly']);
+      await server?.close();
+    }
+  });
+
+  it('renders the real, space-terminated trigger message without doubled punctuation', async () => {
+    const { server: fake, ctx } = await start({
+      triggerPutMode: 'sync-400',
+      triggerDeleteMode: 'sync-409',
+    });
+    fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
+    const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+    assert.match(
+      del.message,
+      /disabled first\. Stop the trigger first; the deployer does not start or stop triggers\.$/,
+    );
+    assert.doesNotMatch(del.message, /\.\.| \. /);
+    fake.config.triggerDeleteMode = 'lro-failed';
+    const failed = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+    assert.match(failed.message, /disabled first\. Stop the trigger first/);
+    assert.doesNotMatch(failed.message, /\.\.| \. /);
   });
 
   it('adds no hint when only the trigger name says "started", or the artifact is not a trigger', async () => {
@@ -269,6 +329,58 @@ describe('managed private endpoints', () => {
       fake.writes()[0]?.path,
       '/managedVirtualNetworks/default/managedPrivateEndpoints/pe_sql',
     );
+  });
+
+  it('waits until a deleted endpoint answers 404', async () => {
+    const { server: fake, ctx, waits } = await start({ endpointDeletePolls: 4 });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    await deleteArtifact(ctx, pe, 'pe_sql');
+    const gets = fake.requests.filter((r) => r.method === 'GET');
+    assert.equal(gets.length, 5, 'four answers of 200, then the 404');
+    assert.deepEqual(waits, [2000, 4000, 8000, 16000]);
+    assert.deepEqual(fake.names(pe.collection), []);
+  });
+
+  it('is done at once when the endpoint is already gone, or gone by the first GET', async () => {
+    const { ctx, server: fake } = await start({ endpointDeletePolls: 0 });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    await deleteArtifact(ctx, pe, 'absent');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    await deleteArtifact(ctx, pe, 'pe_sql');
+    assert.equal(fake.requests.filter((r) => r.method === 'GET').length, 1);
+  });
+
+  it('fails with the endpoint named when it still exists at the deadline', async () => {
+    const { server: fake, ctx } = await start({ endpointDeletePolls: Number.POSITIVE_INFINITY });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    const err = await rejection(deleteArtifact({ ...ctx, deadlineMs: 60_000 }, pe, 'pe_sql'));
+    assert.match(err.message, /pe_sql/);
+    assert.match(err.message, /did not finish within 1 minutes/);
+    assert.match(err.message, /last status: the endpoint still exists/);
+    assert.match(err.message, /Managed private endpoints/);
+    assert.match(err.message, /re-run the job/);
+  });
+
+  it('retries a 429 or 5xx while waiting for the endpoint to go', async () => {
+    const { server: fake, ctx } = await start({ endpointDeletePolls: 1 });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    fake.addFault({
+      method: 'GET',
+      path: /managedPrivateEndpoints/,
+      nth: 2,
+      response: { status: 503, body: 'busy' },
+    });
+    fake.addFault({
+      method: 'GET',
+      path: /managedPrivateEndpoints/,
+      nth: 3,
+      response: { status: 429, headers: { 'Retry-After': '1' }, body: 'slow down' },
+    });
+    await deleteArtifact(ctx, pe, 'pe_sql');
+    assert.deepEqual(fake.names(pe.collection), []);
   });
 
   it('reports whether the workspace has a managed virtual network', async () => {
@@ -462,6 +574,7 @@ describe('integration runtimes through ARM', () => {
     '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/myworkspace/integrationRuntimes/ir_example';
 
   for (const armMode of [
+    'workspace-location',
     'async-operation',
     'location-only',
     'provisioning-body',

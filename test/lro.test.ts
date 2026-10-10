@@ -5,6 +5,7 @@ import {
   awaitArmDeploy,
   awaitDataPlaneDeploy,
   awaitDelete,
+  awaitEndpointDelete,
   awaitEndpointDeploy,
   OPERATION_DEADLINE_MS,
   pollWaitMs,
@@ -403,6 +404,66 @@ describe('delete (R1)', () => {
   });
 });
 
+describe('managed private endpoint delete', () => {
+  const ENDPOINT_URL = `${ORIGIN}/managedVirtualNetworks/default/managedPrivateEndpoints/pe_sql?api-version=2019-06-01-preview`;
+  const endpointTarget = { scope: SCOPE, label: 'managedPrivateEndpoints/pe_sql' };
+  const del = (status: number, headers: Record<string, string> = {}) =>
+    response(status, undefined, headers, 'DELETE', ENDPOINT_URL);
+  const get = (status: number, body?: unknown) => response(status, body, {}, 'GET', ENDPOINT_URL);
+  const exists = get(200, { properties: { provisioningState: 'Succeeded' } });
+  const gone = get(404, { error: { code: 'UnknownError', message: 'PrivateEndpointNotFound' } });
+
+  it('treats a 404 on the DELETE as already deleted', async () => {
+    const { ctx, calls } = context([]);
+    await awaitEndpointDelete(ctx, del(404), endpointTarget);
+    assert.equal(calls.length, 0);
+  });
+
+  it('follows a Location, then still waits for the endpoint to answer 404', async () => {
+    const { ctx, calls } = context([poll(202), poll(200), gone]);
+    await awaitEndpointDelete(
+      ctx,
+      del(202, { location: '/operationResults/op1?api-version=x' }),
+      endpointTarget,
+    );
+    assert.deepEqual(
+      calls.map((c) => c.url),
+      [
+        `${ORIGIN}/operationResults/op1?api-version=x`,
+        `${ORIGIN}/operationResults/op1?api-version=x`,
+        ENDPOINT_URL,
+      ],
+    );
+  });
+
+  it('polls the endpoint after a 202 without Location until it answers 404', async () => {
+    const { ctx, calls, waits } = context([exists, exists, gone]);
+    await awaitEndpointDelete(ctx, del(202), endpointTarget);
+    assert.equal(calls.length, 3);
+    assert.ok(calls.every((c) => c.method === 'GET' && c.url === ENDPOINT_URL));
+    assert.deepEqual(waits, [2000, 4000]);
+  });
+
+  it('fails at once on a 403, with the role hint', async () => {
+    const { ctx, calls } = context([get(403, { error: { message: 'forbidden' } })]);
+    const err = await rejection(awaitEndpointDelete(ctx, del(202), endpointTarget));
+    assert.equal(calls.length, 1);
+    assert.match(err.message, /403/);
+    assert.match(err.message, /missing/);
+  });
+
+  it('names the endpoint and what to check when it still exists at the deadline', async () => {
+    const { ctx } = context(
+      Array.from({ length: 50 }, () => exists),
+      30_000,
+    );
+    const err = await rejection(awaitEndpointDelete(ctx, del(202), endpointTarget));
+    assert.match(err.message, /managedPrivateEndpoints\/pe_sql did not finish within/);
+    assert.match(err.message, /the endpoint still exists \(provisioningState Succeeded\)/);
+    assert.match(err.message, /Managed private endpoints/);
+  });
+});
+
 describe('managed private endpoint deploy', () => {
   const endpointUrl = `${ORIGIN}/managedVirtualNetworks/default/managedPrivateEndpoints/pe_sql?api-version=2019-06-01-preview`;
   const put = (status = 200, body: unknown = { name: 'pe_sql' }, headers = {}) =>
@@ -662,7 +723,8 @@ describe('429 during a poll, through request()', () => {
     const { server, ctx, put, waits } = await setup({ count: 2 });
     try {
       await awaitDataPlaneDeploy(ctx, await put(), target);
-      assert.deepEqual(waits, [3000, 3000]);
+      // The PUT's Retry-After first, then the 429 waits.
+      assert.deepEqual(waits, [10000, 3000, 3000]);
       const polls = server.requests.filter((r) => r.path.startsWith('/operationResults'));
       assert.equal(polls.length, 3);
     } finally {
@@ -677,7 +739,7 @@ describe('429 during a poll, through request()', () => {
       assert.match(err.message, /429/);
       assert.match(err.message, /after 5 attempts/);
       assert.match(err.message, /slow down/);
-      assert.equal(waits.length, 4);
+      assert.equal(waits.length, 5, 'the PUT hint and 4 retries');
     } finally {
       await server.close();
     }
