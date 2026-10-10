@@ -146,6 +146,13 @@ describe('fake Synapse server: lists and paging', () => {
     fake.seedDatabase('db3');
     const list = await call(fake, 'GET', '/databases?api-version=2021-04-01');
     assert.equal((list.json?.items as unknown[]).length, 2);
+    // The real shape: entity fields nested under `properties`.
+    assert.deepEqual((list.json?.items as Record<string, unknown>[])[0], {
+      id: '/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-example/providers/microsoft.synapse/workspaces/myworkspace/databases/db1',
+      name: 'db1',
+      properties: { Origin: { Type: 'SPARK' }, Properties: { IsSyMSCDMDatabase: true } },
+      type: 'DATABASE',
+    });
     const token = list.json?.continuationToken as string;
     assert.match(token, /\+/);
     const raw = await call(
@@ -165,12 +172,12 @@ describe('fake Synapse server: lists and paging', () => {
 
     const tables = await call(fake, 'GET', '/databases/db1/tables?api-version=2021-04-01');
     assert.deepEqual(
-      (tables.json?.items as { Name: string }[]).map((t) => t.Name),
+      (tables.json?.items as { name: string }[]).map((t) => t.name),
       ['t1', 't2'],
     );
     const rels = await call(fake, 'GET', '/databases/db1/relationships?api-version=2021-04-01');
     assert.deepEqual(
-      (rels.json?.items as { Name: string }[]).map((t) => t.Name),
+      (rels.json?.items as { name: string }[]).map((t) => t.name),
       ['r1'],
     );
   });

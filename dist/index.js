@@ -44124,8 +44124,11 @@ async function deployLakeDatabase(ctx, database, resource) {
 }
 var MAX_PAGES = 1e3;
 function nameOf(item) {
-  const name3 = item.Name ?? item.name;
+  const name3 = item.name ?? item.Name;
   return typeof name3 === "string" && name3 !== "" ? name3 : void 0;
+}
+function fieldsOf(item) {
+  return asRecord(item.properties) ?? item;
 }
 async function listItems(ctx, path3) {
   const base = `${ctx.dataPlane}${path3}?api-version=${LAKE_DATABASE_API_VERSION}`;
@@ -44162,8 +44165,9 @@ async function listItems(ctx, path3) {
 async function listLakeDatabases(ctx) {
   const names = [];
   for (const item of await listItems(ctx, "/databases")) {
-    const origin = asRecord(item.Origin)?.Type;
-    const symscdm = asRecord(item.Properties)?.IsSyMSCDMDatabase;
+    const fields = fieldsOf(item);
+    const origin = asRecord(fields.Origin)?.Type;
+    const symscdm = asRecord(fields.Properties)?.IsSyMSCDMDatabase;
     const name3 = nameOf(item);
     if (name3 !== void 0 && typeof origin === "string" && origin.toUpperCase() === "SPARK" && symscdm === true) {
       names.push(name3);

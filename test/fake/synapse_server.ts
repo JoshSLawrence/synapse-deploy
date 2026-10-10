@@ -20,6 +20,7 @@ const TRIGGER_UPDATE_MESSAGE =
   'Cannot update enabled Trigger; the trigger needs to be disabled first.';
 const TRIGGER_DELETE_MESSAGE =
   'Cannot delete enabled Trigger; the trigger needs to be disabled first.';
+const ZERO_GUID = '00000000-0000-0000-0000-000000000000';
 const DATA_TOKEN = 'fake-data-token';
 const ARM_TOKEN = 'fake-arm-token';
 
@@ -534,6 +535,23 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     }
   }
 
+  // Lake database listings (and GETs) answer {id, name, properties, type},
+  // with the entity's own fields nested under `properties`, as verified on a
+  // real workspace (2021-04-01).
+  function lakeItem(
+    type: string,
+    name: string,
+    properties: Record<string, unknown>,
+    path: string[],
+  ): Record<string, unknown> {
+    return {
+      id: `/subscriptions/${ZERO_GUID}/resourcegroups/rg-example/providers/microsoft.synapse/workspaces/myworkspace/databases/${path.map(encodeURIComponent).join('/')}`,
+      name,
+      properties,
+      type,
+    };
+  }
+
   function handleDatabases(
     req: http.IncomingMessage,
     res: http.ServerResponse,
@@ -547,7 +565,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       listItems(
         res,
         url,
-        [...databases.values()].map((db) => ({ name: db.name, ...db.body })),
+        [...databases.values()].map((db) => lakeItem('DATABASE', db.name, db.body, [db.name])),
       );
       return;
     }
@@ -557,7 +575,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
         if (db === undefined) {
           error(res, 404, 'NotFound', `Database ${dbName} was not found`);
         } else {
-          send(res, 200, { name: db.name, ...db.body });
+          send(res, 200, lakeItem('DATABASE', db.name, db.body, [db.name]));
         }
       } else if (method === 'PUT') {
         const written = record(structuredClone(body));
@@ -593,7 +611,13 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       listItems(
         res,
         url,
-        [...children.values()].map((child) => ({ Name: child.name, ...child.body })),
+        [...children.values()].map((child) =>
+          lakeItem(childKind === 'tables' ? 'TABLE' : 'RELATIONSHIP', child.name, child.body, [
+            db.name,
+            childKind,
+            child.name,
+          ]),
+        ),
       );
     } else if (method === 'PUT') {
       const written = record(structuredClone(body));
@@ -614,7 +638,15 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
       if (child === undefined) {
         error(res, 404, 'NotFound', `${childKind}/${childName} was not found`);
       } else {
-        send(res, 200, { name: child.name, ...child.body });
+        send(
+          res,
+          200,
+          lakeItem(childKind === 'tables' ? 'TABLE' : 'RELATIONSHIP', child.name, child.body, [
+            db.name,
+            childKind,
+            child.name,
+          ]),
+        );
       }
     } else {
       error(res, 405, 'MethodNotAllowed', method);
