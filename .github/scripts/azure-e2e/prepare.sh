@@ -3,13 +3,12 @@
 # Finds the workspace's own storage account, which the run uses as the
 # managed private endpoint's target and the lake database's location, and
 # writes the templates the run deploys: the committed ones with the
-# placeholder storage host replaced, plus the two derived ones.
+# placeholder storage host replaced, plus the empty one derived from v1.
 #
 #   prepare.sh <output-dir>
 #
 #   <output-dir>/v1/TemplateForWorkspace.json          test/fixtures/azure-e2e/template
 #   <output-dir>/v2/TemplateForWorkspace.json          test/fixtures/azure-e2e/template-v2
-#   <output-dir>/v2-trigger/TemplateForWorkspace.json  v2, trigger changed
 #   <output-dir>/empty/TemplateForWorkspace.json       v1 without resources
 #
 # Writes step outputs when GITHUB_OUTPUT is set: params_v1 and params_v2
@@ -93,9 +92,6 @@ derive() {
 derive v1 "$FIXTURES/template/TemplateForWorkspace.json" '.'
 derive v2 "$FIXTURES/template-v2/TemplateForWorkspace.json" '.'
 derive empty "$FIXTURES/template/TemplateForWorkspace.json" '.resources = []'
-# A started trigger refuses any change; the recurrence is what changes.
-derive v2-trigger "$FIXTURES/template-v2/TemplateForWorkspace.json" \
-  '(.resources[] | select(.type | test("triggers$"; "i")) | .properties.typeProperties.recurrence.interval) = 2'
 
 params_v1="ls_e2e_storage_properties_typeProperties_url=${url}
 mpe-e2e-blob_properties_privateLinkResourceId=${storage_id}"

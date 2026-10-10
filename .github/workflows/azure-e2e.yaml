@@ -20,9 +20,9 @@ jobs:
     name: Azure E2E
     runs-on: ubuntu-latest
     environment: azure-e2e
-    # The sum of the step timeouts below (255), rounded up: the job timeout
-    # must never be what ends a step. A healthy run takes about 15 minutes.
-    timeout-minutes: 260
+    # The sum of the step timeouts below (215), rounded up: the job timeout
+    # must never be what ends a step. A healthy run takes about 5 minutes.
+    timeout-minutes: 220
     permissions:
       contents: read
       id-token: write
@@ -161,41 +161,6 @@ jobs:
           DRY_DELETED: ${{ steps.dry.outputs.deleted }}
         run: .github/scripts/azure-e2e/steps.sh check-v2
 
-      # Drop the next four steps if the test identity cannot start triggers:
-      # starting one takes a role beyond the minimal ones the README names,
-      # and widening the role for this check is not worth it.
-      - name: Start trigger tr_e2e_daily
-        timeout-minutes: 5
-        id: start-trigger
-        run: az synapse trigger start --workspace-name "$AZURE_SYNAPSE_WORKSPACE" --name tr_e2e_daily --output none
-
-      - name: Deploy a changed trigger while it is started (must fail)
-        timeout-minutes: 25
-        id: changed-trigger
-        continue-on-error: true
-        uses: ./
-        with:
-          workspace-name: ${{ secrets.AZURE_SYNAPSE_WORKSPACE }}
-          template-file: ${{ runner.temp }}/azure-e2e/templates/v2-trigger/TemplateForWorkspace.json
-          parameters-file: test/fixtures/azure-e2e/parameters-v2.json
-          parameters: ${{ steps.prepare.outputs.params_v2 }}
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          deploy-managed-private-endpoints: "true"
-
-      - name: Stop trigger tr_e2e_daily
-        timeout-minutes: 5
-        if: always() && steps.start-trigger.outcome == 'success'
-        run: az synapse trigger stop --workspace-name "$AZURE_SYNAPSE_WORKSPACE" --name tr_e2e_daily --output none
-
-      - name: Check the started trigger refused the change
-        timeout-minutes: 5
-        env:
-          OUTCOME: ${{ steps.changed-trigger.outcome }}
-        run: .github/scripts/azure-e2e/steps.sh trigger-refused
-
       # A federated token cannot be refreshed after about an hour, and the run
       # may be long past that: sign in again before anything below.
       - name: Cleanup - sign in again
@@ -207,6 +172,8 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # The test identity cannot start triggers, so none should be started and
+      # this is a no-op; it stays tolerant of failure for that reason.
       - name: Cleanup - stop the trigger
         timeout-minutes: 5
         if: always() && steps.before.outcome == 'success'

@@ -5,11 +5,10 @@
 #
 #   steps.sh start
 #   steps.sh check-v1|check-redeploy|check-dry|check-v2
-#   steps.sh trigger-refused
 #   steps.sh empty-failed
 #
 # Environment variables: E2E_DIR (set by "start"), and per command DEPLOYED,
-# SKIPPED, DELETED, DRY_DELETED, OUTCOME; "start" reads the debug settings
+# SKIPPED, DELETED, DRY_DELETED; "start" reads the debug settings
 # STEP_DEBUG_VAR and RUNNER_DEBUG_VAR (the repository variables
 # ACTIONS_STEP_DEBUG and ACTIONS_RUNNER_DEBUG).
 
@@ -64,16 +63,6 @@ cmd_check_v2() {
   "$SCRIPT_DIR/check.sh" state v2 "$E2E_DIR/results/after-v2.txt"
 }
 
-cmd_trigger_refused() {
-  local outcome="${OUTCOME:?set OUTCOME}"
-  if [ "$outcome" != "failure" ]; then
-    echo "::error::The changed-trigger deployment ended '${outcome}', expected 'failure'."
-    log_error "The changed-trigger deployment ended '${outcome}', expected 'failure': a started trigger must refuse the update, and the action must report it."
-    exit 1
-  fi
-  log_info "The started trigger refused the change"
-}
-
 cmd_empty_failed() {
   echo "::error::The empty-template deployment failed; see that step's log."
   log_error "The empty-template deployment failed. The cleanup script then ran: if it passed, the workspace is restored; if not, it is not, so remove the leftovers by hand before the next run. See the failed step's log."
@@ -86,10 +75,9 @@ case "${1:-}" in
   check-redeploy) cmd_check_redeploy ;;
   check-dry) cmd_check_dry ;;
   check-v2) cmd_check_v2 ;;
-  trigger-refused) cmd_trigger_refused ;;
   empty-failed) cmd_empty_failed ;;
   *)
-    log_error "Usage: steps.sh start|check-v1|check-redeploy|check-dry|check-v2|trigger-refused|empty-failed"
+    log_error "Usage: steps.sh start|check-v1|check-redeploy|check-dry|check-v2|empty-failed"
     exit 1
     ;;
 esac
