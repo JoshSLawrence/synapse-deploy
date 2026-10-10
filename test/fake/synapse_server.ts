@@ -136,7 +136,14 @@ export interface FakeSynapse {
   seed(collection: string, items: SeedItem[]): void;
   seedDatabase(
     name: string,
-    options?: { origin?: string; symscdm?: boolean; tables?: string[]; relationships?: string[] },
+    options?: {
+      origin?: unknown;
+      symscdm?: unknown;
+      // Replaces the whole body, so tests can leave Origin or Properties out.
+      raw?: Record<string, unknown>;
+      tables?: string[];
+      relationships?: string[];
+    },
   ): void;
   get(collection: string, name: string): Record<string, unknown> | undefined;
   names(collection: string): string[];
@@ -585,6 +592,8 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
           tables: db?.tables ?? new Map<string, Stored>(),
           relationships: db?.relationships ?? new Map<string, Stored>(),
         });
+        // The real PUT response shape is unverified; src/lro.ts reads only the
+        // top-level name and status, which this and the nested shape both carry.
         send(res, 200, { name: dbName, ...record(written.properties) });
       } else if (method === 'DELETE') {
         if (db === undefined) {
@@ -626,6 +635,8 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
         body: record(written.properties),
         gets: 0,
       });
+      // The real PUT response shape is unverified; src/lro.ts reads only the
+      // top-level name and status, which this and the nested shape both carry.
       send(res, 200, { name: childName, ...record(written.properties) });
     } else if (method === 'DELETE') {
       if (children.delete(childName.toLowerCase())) {
@@ -955,7 +966,7 @@ export async function startFakeSynapse(overrides: Partial<FakeConfig> = {}): Pro
     seedDatabase(name, options = {}) {
       databases.set(name.toLowerCase(), {
         name,
-        body: {
+        body: options.raw ?? {
           Origin: { Type: options.origin ?? 'SPARK' },
           Properties: { IsSyMSCDMDatabase: options.symscdm ?? true },
         },

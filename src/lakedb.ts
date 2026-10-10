@@ -90,7 +90,8 @@ const MAX_PAGES = 1_000;
 
 // A lake database listing item is {id, name, properties, type}, with the
 // entity's own fields under `properties` (verified on a real workspace). The
-// older flat shape (Name, Origin, Properties at the top) is accepted too.
+// flat shape this code assumed before (Name, Origin, Properties at the top) is
+// still accepted so a listing in that shape keeps working.
 function nameOf(item: Record<string, unknown>): string | undefined {
   const name = item.name ?? item.Name;
   return typeof name === 'string' && name !== '' ? name : undefined;
