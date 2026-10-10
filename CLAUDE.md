@@ -49,6 +49,7 @@ or under `example`. The hosts allowed in fixtures are `contoso`, `example.com`,
     azure-e2e.yaml
     ci.yaml
     release.yaml
+  zizmor.yml
 .gitignore
 .markdownlint-cli2.yaml
 .pre-commit-config.yaml
@@ -166,6 +167,8 @@ request fails it by design: check out the branch, run `mise run build`, commit
   are `azure-e2e` and `release`, which share one group each and never cancel
   a run in progress.
 - actionlint and zizmor must be clean (they run in `mise run lint`).
+  `.github/zizmor.yml` ignores only the `self-repository` rule, and only for
+  `azure-e2e.yaml` (its `uses: ./`); switch to `$/` once actionlint accepts it.
 
 ## Versioning
 
