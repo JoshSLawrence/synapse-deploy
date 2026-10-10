@@ -28,3 +28,7 @@ run = ".github/scripts/check-dist.sh"
 [tasks.smoke]
 description = "Run the built action with no network"
 run = ".github/scripts/smoke.sh"
+
+[tasks.docs]
+description = "Regenerate the README inputs and outputs tables from action.yml"
+run = "node scripts/readme-tables.ts"

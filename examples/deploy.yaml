@@ -1,0 +1,42 @@
+# Deploys an exported Synapse workspace template whenever it changes on main.
+#
+# Replace before use:
+# - myworkspace: the target workspace's name
+# - workspace/: the folder that holds the exported template
+# - environment "production": an environment with a federated credential for
+#   this repository and environment
+# - the repository variables AZURE_CLIENT_ID and AZURE_TENANT_ID
+name: Deploy Synapse
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - workspace/**
+
+permissions: {}
+
+concurrency:
+  group: deploy-synapse
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: JoshSLawrence/synapse-deploy@v1
+        with:
+          workspace-name: myworkspace
+          template-file: workspace/TemplateForWorkspace.json
+          parameters-file: workspace/TemplateParametersForWorkspace.json
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}

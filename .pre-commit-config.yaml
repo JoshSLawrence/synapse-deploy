@@ -19,7 +19,7 @@ repos:
         name: actionlint
         entry: actionlint
         language: system
-        files: ^\.github/workflows/.*\.ya?ml$
+        files: ^(\.github/workflows|examples)/.*\.ya?ml$
 
       - id: zizmor
         name: zizmor
