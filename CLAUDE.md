@@ -63,6 +63,9 @@ dist/
   index.js.map
   licenses.txt
 eslint.config.js
+examples/
+  deploy.yaml
+  plan-and-deploy.yaml
 LICENSE
 mise.toml
 package-lock.json
@@ -70,6 +73,8 @@ package.json
 README.md
 scripts/
   build.mjs
+  readme-tables.ts
+SECURITY.md
 src/
   arm.ts
   auth.ts
@@ -97,6 +102,7 @@ test/
     azure-e2e/
     templates/
   support/
+  readme.test.ts
   *.test.ts
 THIRD_PARTY_NOTICES.md
 tsconfig.json
@@ -107,15 +113,16 @@ tsconfig.json
 Tools come from `mise.toml` (Node is pinned there); run everything through
 mise so CI and a laptop use the same versions.
 
-| Task                    | Does                                         |
-| ----------------------- | -------------------------------------------- |
-| `mise run build`        | Bundle `src/main.ts` into `dist/` (esbuild)  |
-| `mise run check-dist`   | Rebuild and fail if `dist/` differs from Git |
-| `mise run lint`         | Every pre-commit hook on all files           |
-| `mise run smoke`        | Run the built action with no network         |
-| `mise run test`         | `node --test` over `test/**/*.test.ts`       |
-| `mise run test-release` | Test the pure functions of `release.sh`      |
-| `mise run typecheck`    | `tsc --noEmit`                               |
+| Task                    | Does                                              |
+| ----------------------- | ------------------------------------------------- |
+| `mise run build`        | Bundle `src/main.ts` into `dist/` (esbuild)       |
+| `mise run check-dist`   | Rebuild and fail if `dist/` differs from Git      |
+| `mise run docs`         | Regenerate the README's inputs and outputs tables |
+| `mise run lint`         | Every pre-commit hook on all files                |
+| `mise run smoke`        | Run the built action with no network              |
+| `mise run test`         | `node --test` over `test/**/*.test.ts`            |
+| `mise run test-release` | Test the pure functions of `release.sh`           |
+| `mise run typecheck`    | `tsc --noEmit`                                    |
 
 `npm run lint` runs the same pre-commit hooks. Run `npm ci` first. Tests use
 Node's built-in runner and type stripping, so `.ts` files run directly: no
@@ -138,6 +145,16 @@ packages bundled into it, written by the same build, so any change to `src/`, `s
 commit. The `Build` check fails on a stale `dist/`. A Dependabot npm pull
 request fails it by design: check out the branch, run `mise run build`, commit
 `dist/` and push.
+
+## Documentation
+
+The README's inputs and outputs tables are generated from `action.yml`
+between `<!-- NAME:start -->` and `<!-- NAME:end -->` markers (`inputs` and
+`outputs`).
+Never hand-edit them: change `action.yml`, then run `mise run docs`.
+`test/readme.test.ts` fails when they are stale. The two files in `examples/`
+are linted by actionlint; zizmor stays off `examples/` because it flags the
+`@v1` ref by design.
 
 ## Conventions
 
