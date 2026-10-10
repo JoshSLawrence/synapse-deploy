@@ -26516,6 +26516,8 @@ function serviceMessageOf(text) {
         message = inner;
       } else if (typeof record.message === "string") {
         message = record.message;
+      } else if (typeof record.Message === "string") {
+        message = record.Message;
       }
     }
   } catch {
@@ -26927,6 +26929,9 @@ async function awaitDelete(ctx, del, target) {
     return;
   }
   ensureSuccess(del);
+  await followDelete(ctx, del, target, deadlineFor(ctx));
+}
+async function followDelete(ctx, del, target, deadlineAt) {
   const location = headerValue(del.headers, "location");
   if (location === void 0) {
     return;
@@ -26935,7 +26940,7 @@ async function awaitDelete(ctx, del, target) {
     ctx,
     target,
     sameOriginUrl(del.url, location),
-    deadlineFor(ctx),
+    deadlineAt,
     (res) => {
       if (res.status === 404) {
         info(`${target.label}: the delete operation is gone (404); treating it as done`);
@@ -26968,6 +26973,31 @@ async function awaitDelete(ctx, del, target) {
     },
     del.headers
   );
+}
+async function awaitEndpointDelete(ctx, del, target) {
+  if (del.status === 404) {
+    info(`${target.label}: already deleted`);
+    return;
+  }
+  ensureSuccess(del);
+  const deadlineAt = deadlineFor(ctx);
+  await followDelete(ctx, del, target, deadlineAt);
+  if (headerValue(del.headers, "location") !== void 0) {
+    return;
+  }
+  await poll(ctx, target, del.url, deadlineAt, (res) => {
+    if (res.status === 404) {
+      return true;
+    }
+    if (res.status === 429) {
+      return "HTTP 429";
+    }
+    if (res.status < 200 || res.status >= 300) {
+      throw unexpected(res, target);
+    }
+    const state3 = stringField(asRecord(strictBody(res)?.properties), "provisioningState");
+    return `the endpoint still exists${state3 === void 0 ? "" : ` (provisioningState ${state3})`}`;
+  });
 }
 function provisioningInterpreter(target) {
   return (res) => {
@@ -45268,7 +45298,8 @@ async function deleteArtifact(ctx, kind2, name3) {
       ctx.dataPlane + artifactPath(kind2, name3),
       ctx.scope
     );
-    await awaitDelete(ctx, del, { scope: ctx.scope, label });
+    const wait = kind2.plane === "endpoint" ? awaitEndpointDelete : awaitDelete;
+    await wait(ctx, del, { scope: ctx.scope, label });
   } catch (err) {
     throw withTriggerHint(kind2, err);
   }

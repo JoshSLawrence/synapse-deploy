@@ -322,6 +322,16 @@ export async function awaitDelete(
     return;
   }
   ensureSuccess(del);
+  await followDelete(ctx, del, target, deadlineFor(ctx));
+}
+
+/** Polls the DELETE's Location, if it has one, to the end. */
+async function followDelete(
+  ctx: LroContext,
+  del: Response,
+  target: OperationTarget,
+  deadlineAt: number,
+): Promise<void> {
   const location = headerValue(del.headers, 'location');
   if (location === undefined) {
     return;
@@ -330,7 +340,7 @@ export async function awaitDelete(
     ctx,
     target,
     sameOriginUrl(del.url, location),
-    deadlineFor(ctx),
+    deadlineAt,
     (res) => {
       if (res.status === 404) {
         core.info(`${target.label}: the delete operation is gone (404); treating it as done`);
@@ -365,6 +375,42 @@ export async function awaitDelete(
     },
     del.headers,
   );
+}
+
+/**
+ * Managed private endpoint delete: the service answers 202 with no Location
+ * and keeps serving the endpoint for a while, so a delete without Location is
+ * only done once a GET answers 404. The run must not report an endpoint
+ * deleted while it still exists.
+ */
+export async function awaitEndpointDelete(
+  ctx: LroContext,
+  del: Response,
+  target: OperationTarget,
+): Promise<void> {
+  if (del.status === 404) {
+    core.info(`${target.label}: already deleted`);
+    return;
+  }
+  ensureSuccess(del);
+  const deadlineAt = deadlineFor(ctx);
+  await followDelete(ctx, del, target, deadlineAt);
+  if (headerValue(del.headers, 'location') !== undefined) {
+    return;
+  }
+  await poll(ctx, target, del.url, deadlineAt, (res) => {
+    if (res.status === 404) {
+      return true;
+    }
+    if (res.status === 429) {
+      return 'HTTP 429';
+    }
+    if (res.status < 200 || res.status >= 300) {
+      throw unexpected(res, target);
+    }
+    const state = stringField(asRecord(strictBody(res)?.properties), 'provisioningState');
+    return `the endpoint still exists${state === undefined ? '' : ` (provisioningState ${state})`}`;
+  });
 }
 
 function provisioningInterpreter(target: OperationTarget): Interpreter {

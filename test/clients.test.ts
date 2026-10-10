@@ -298,6 +298,51 @@ describe('managed private endpoints', () => {
     );
   });
 
+  it('waits until a deleted endpoint answers 404', async () => {
+    const { server: fake, ctx, waits } = await start({ endpointDeletePolls: 4 });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    await deleteArtifact(ctx, pe, 'pe_sql');
+    const gets = fake.requests.filter((r) => r.method === 'GET');
+    assert.equal(gets.length, 5, 'four answers of 200, then the 404');
+    assert.equal(waits.length, 4);
+    assert.deepEqual(fake.names(pe.collection), []);
+  });
+
+  it('is done at once when the endpoint is already gone, or gone by the first GET', async () => {
+    const { ctx, server: fake } = await start({ endpointDeletePolls: 0 });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    await deleteArtifact(ctx, pe, 'absent');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    await deleteArtifact(ctx, pe, 'pe_sql');
+    assert.equal(fake.requests.filter((r) => r.method === 'GET').length, 1);
+  });
+
+  it('fails with the endpoint named when it still exists at the deadline', async () => {
+    const { server: fake, ctx } = await start({ endpointDeletePolls: Number.POSITIVE_INFINITY });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    const err = await rejection(deleteArtifact({ ...ctx, deadlineMs: 60_000 }, pe, 'pe_sql'));
+    assert.match(err.message, /pe_sql/);
+    assert.match(err.message, /did not finish within 1 minutes/);
+    assert.match(err.message, /last status: the endpoint still exists/);
+    assert.match(err.message, /re-run the job/);
+  });
+
+  it('retries a 429 or 5xx while waiting for the endpoint to go', async () => {
+    const { server: fake, ctx } = await start({ endpointDeletePolls: 1 });
+    const pe = kind('managedVirtualNetworks/managedPrivateEndpoints');
+    fake.seed(pe.collection, [{ name: 'pe_sql', properties: {} }]);
+    fake.addFault({
+      method: 'GET',
+      path: /managedPrivateEndpoints/,
+      nth: 2,
+      response: { status: 503, body: 'busy' },
+    });
+    await deleteArtifact(ctx, pe, 'pe_sql');
+    assert.deepEqual(fake.names(pe.collection), []);
+  });
+
   it('reports whether the workspace has a managed virtual network', async () => {
     const withVnet = await start();
     const found = await hasManagedVirtualNetwork(withVnet.ctx);

@@ -153,7 +153,8 @@ export function serviceMessageOf(text: string): string {
   try {
     const parsed: unknown = JSON.parse(text);
     if (typeof parsed === 'object' && parsed !== null) {
-      const record = parsed as { error?: unknown; message?: unknown };
+      // Some Synapse answers (a started trigger's 409, lake databases) capitalise the key.
+      const record = parsed as { error?: unknown; message?: unknown; Message?: unknown };
       const inner =
         typeof record.error === 'object' && record.error !== null
           ? (record.error as { message?: unknown }).message
@@ -162,6 +163,8 @@ export function serviceMessageOf(text: string): string {
         message = inner;
       } else if (typeof record.message === 'string') {
         message = record.message;
+      } else if (typeof record.Message === 'string') {
+        message = record.Message;
       }
     }
   } catch {
