@@ -6,10 +6,18 @@
 # - workspace/: the Synapse Git folder (it needs a mise.toml that pins node)
 # - environment "production": an environment with a federated credential for
 #   this repository and environment
+# - workspace/parameters/production.json: your own ARM parameters file with the
+#   target workspace's values; the exported parameters file carries the source
+#   workspace's, and later files win
+# - environment "production-plan": a separate environment with its own
+#   federated credential, ideally a read-only identity (Synapse Artifact
+#   User; listing the workspace under it is untested)
 # - the repository variables AZURE_CLIENT_ID and AZURE_TENANT_ID
 #
 # The build job needs no credentials. The plan job runs for pull requests from
-# this repository only: pull requests from forks get no OIDC token.
+# this repository only: pull requests from forks get no OIDC token. A pull
+# request can edit this workflow, so the plan job must not use the production
+# environment or identity.
 name: Plan and deploy Synapse
 
 on:
@@ -56,12 +64,16 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     needs: build
     runs-on: ubuntu-latest
-    environment: production
+    environment: production-plan
     timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: template
@@ -71,7 +83,9 @@ jobs:
         with:
           workspace-name: myworkspace
           template-file: template/TemplateForWorkspace.json
-          parameters-file: template/TemplateParametersForWorkspace.json
+          parameters-file: |
+            template/TemplateParametersForWorkspace.json
+            workspace/parameters/production.json
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           delete-artifacts: true
@@ -87,6 +101,10 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: template
@@ -96,7 +114,9 @@ jobs:
         with:
           workspace-name: myworkspace
           template-file: template/TemplateForWorkspace.json
-          parameters-file: template/TemplateParametersForWorkspace.json
+          parameters-file: |
+            template/TemplateParametersForWorkspace.json
+            workspace/parameters/production.json
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           delete-artifacts: true

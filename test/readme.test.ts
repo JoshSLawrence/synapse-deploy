@@ -54,6 +54,24 @@ describe('README generated tables', () => {
     );
   });
 
+  it('escapes defaults, keeps escaped pipes, folds literal newlines, reads string booleans', () => {
+    const yml = [
+      'inputs:',
+      '  a:',
+      '    description: |',
+      '      Line one',
+      '      line two \\| kept',
+      '    required: "true"',
+      '    default: "x|y`z"',
+      '  b:',
+      '    description: Plain.',
+      '    default: "p|q"',
+    ].join('\n');
+    const { inputs } = renderTables(yml);
+    assert.match(inputs, /\| `a` +\| yes +\| `` x\\\|y`z `` +\| Line one line two \\\| kept \|/);
+    assert.match(inputs, /\| `b` +\| no +\| `p\\\|q` +\| Plain\. +\|/);
+  });
+
   it('refuses a missing description', () => {
     assert.throws(() => renderTables('inputs:\n  x:\n    required: true\n'), /input x has no desc/);
   });

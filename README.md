@@ -23,7 +23,8 @@ A run goes through these phases:
 6. Deletes, only after every deployment succeeded, dependents first. A
    deleted managed private endpoint is awaited until the workspace no longer
    returns it.
-7. Writes the three outputs and a job summary table, even when the run fails.
+7. Writes the three outputs and a job summary table, even when a deployment
+   or deletion fails.
 
 ## Quick start (OIDC)
 
@@ -34,6 +35,11 @@ You need:
   `api://AzureADTokenExchange` in every cloud.
 - The roles in [Permissions](#permissions).
 - A workspace development endpoint that the runner can reach.
+
+The exported parameters file carries the source workspace's values, so add a
+second parameters file with the target's (later files win). Here
+`parameters/production.json` is your own ARM parameters file, such as
+`{"parameters": {"storageAccountUrl": {"value": "https://stexample.dfs.core.windows.net"}}}`.
 
 Then add a job:
 
@@ -53,7 +59,9 @@ jobs:
         with:
           workspace-name: myworkspace
           template-file: workspace/TemplateForWorkspace.json
-          parameters-file: workspace/TemplateParametersForWorkspace.json
+          parameters-file: |
+            workspace/TemplateParametersForWorkspace.json
+            workspace/parameters/production.json
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
 ```
@@ -62,15 +70,11 @@ jobs:
 
 The action signs in itself; no `azure/login` step is needed.
 
-<!-- markdownlint-disable MD013 -->
-
-| `auth`             | Inputs it needs                                           |
-| ------------------ | --------------------------------------------------------- |
-| `oidc` (default)   | `client-id`, `tenant-id`; the job needs `id-token: write` |
-| `client-secret`    | `client-id`, `tenant-id`, `client-secret`                 |
-| `managed-identity` | `client-id` (optional)                                    |
-
-<!-- markdownlint-enable MD013 -->
+| `auth`             | Inputs it needs                                  |
+| ------------------ | ------------------------------------------------ |
+| `oidc` (default)   | `client-id`, `tenant-id`; job: `id-token: write` |
+| `client-secret`    | `client-id`, `tenant-id`, `client-secret`        |
+| `managed-identity` | `client-id` (optional)                           |
 
 - `client-secret` comes from a secret and is masked at once.
 - `managed-identity` is for an Azure-hosted self-hosted runner. `client-id`
@@ -150,7 +154,8 @@ outputs are what would happen.
   updates and deletes ("Stop the trigger first").
 - With endpoints requested and no managed virtual network in the workspace, a
   managed private endpoint in the template fails the run before any change.
-  Without one in the template, the run logs it and continues.
+  Without a managed private endpoint in the template, the run logs it and
+  continues.
 
 ## Permissions
 
@@ -180,21 +185,30 @@ See Microsoft's [Azure Synapse RBAC roles][synapse-rbac].
 
 ## Dry run
 
-With `dry-run: true` the action signs in, reads the template and the
-workspace, logs and summarizes what would be deployed, skipped and deleted,
-and sets the outputs to those counts. It writes nothing. The roles are the
-same as for a real run.
+With `dry-run: true` the action signs in, reads the template, logs and
+summarizes what would be deployed, skipped and deleted, and sets the outputs to
+those counts. It writes nothing. It reads the workspace only with
+`delete-artifacts` (to list what exists) or `deploy-managed-private-endpoints`
+(to probe the managed virtual network). The same roles are enough, but a dry
+run only reads.
 
 A typical use is a pull request job. OIDC needs `id-token: write`, which pull
 requests from forks never get, so run the job for same-repository pull
-requests only (see [`examples/plan-and-deploy.yaml`](examples/plan-and-deploy.yaml)).
+requests only.
+
+A pull request can edit the workflow, so give the job its own environment and
+federated credential, never the production one. Ideally the identity is
+read-only: Synapse Artifact User can read artifacts, but listing the workspace
+under that role is untested.
+See [`examples/plan-and-deploy.yaml`](examples/plan-and-deploy.yaml).
 
 ## Reserved names
 
 The workspace's own artifacts are never deployed or deleted:
 
 - linked services named `*-WorkspaceDefaultStorage` and
-  `*-WorkspaceDefaultSqlServer` (anchored at the end of the name, any type)
+  `*-WorkspaceDefaultSqlServer` (case-insensitive, anchored at the end of the
+  name, whatever the linked service's type)
 - the credential `WorkspaceSystemIdentity`
 - managed private endpoints named `synapse-ws-*`
 
@@ -205,7 +219,8 @@ the target's (`<target>-WorkspaceDefaultStorage`).
 
 The Synapse export usually comes from Studio's Publish (the
 `workspace_publish` branch). To build it from the Git folder in CI instead,
-offline and without credentials, compose `shared/setup` and `synapse/build`
+without Azure credentials or a workspace (the runner needs outbound HTTPS),
+compose `shared/setup` and `synapse/build`
 from [JoshSLawrence/actions][actions] (pin
 `40c13146c9512361c323fcc49134c832cfdc3c03 # v0.6.0`; the folder needs a
 `mise.toml` that pins node). Upload `template-dir` as an artifact and deploy
@@ -237,24 +252,24 @@ it in a later job.
 
 <!-- markdownlint-disable MD013 -->
 
-| Azure/Synapse-workspace-deployment           | synapse-deploy                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------- |
-| `operation: deploy`                          | the only operation; remove it                                       |
-| `operation: validate`, `validateDeploy`      | `synapse/build` (see above), then this action                       |
-| `TargetWorkspaceName`                        | `workspace-name`                                                    |
-| `TemplateFile`                               | `template-file`                                                     |
-| `ParametersFile`                             | `parameters-file` (several, later wins; optional)                   |
-| `OverrideArmParameters` (YAML)               | `parameters` or a parameters file                                   |
-| `FailOnMissingOverrides`                     | removed: a missing value always fails                               |
-| `Environment` (required)                     | `cloud` (optional, default `AzureCloud`)                            |
-| `resourceGroup`, `subscriptionId` (required) | `resource-group`, `subscription-id` (only for integration runtimes) |
-| `clientId`, `tenantId`                       | `client-id`, `tenant-id`                                            |
-| `clientSecret`                               | `client-secret` with `auth: client-secret`                          |
-| `managedIdentity: true`                      | `auth: managed-identity`                                            |
-| `federatedIdentity: true` (in some forks)    | `auth: oidc`, the default                                           |
-| `DeleteArtifactsNotInTemplate`               | `delete-artifacts`                                                  |
-| `deployManagedPrivateEndpoint`               | `deploy-managed-private-endpoints`                                  |
-| `ArtifactsFolder`, `npmpackage`              | removed                                                             |
+| Azure/Synapse-workspace-deployment              | synapse-deploy                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| `operation: deploy`                             | the only operation; remove it                                       |
+| `operation: validate`, `validateDeploy`         | `synapse/build` (see above), then this action                       |
+| `TargetWorkspaceName`                           | `workspace-name`                                                    |
+| `TemplateFile`                                  | `template-file`                                                     |
+| `ParametersFile`                                | `parameters-file` (several, later wins; optional)                   |
+| `OverrideArmParameters` (YAML or `-name value`) | `parameters` (`name=value` lines) or a parameters file              |
+| `FailOnMissingOverrides`                        | removed: a missing value always fails                               |
+| `Environment` (required)                        | `cloud` (optional, default `AzureCloud`)                            |
+| `resourceGroup`, `subscriptionId` (required)    | `resource-group`, `subscription-id` (only for integration runtimes) |
+| `clientId`, `tenantId`                          | `client-id`, `tenant-id`                                            |
+| `clientSecret`                                  | `client-secret` with `auth: client-secret`                          |
+| `managedIdentity: true`                         | `auth: managed-identity`                                            |
+| `federatedIdentity: true` (in some forks)       | `auth: oidc`, the default                                           |
+| `DeleteArtifactsNotInTemplate`                  | `delete-artifacts`                                                  |
+| `deployManagedPrivateEndpoint`                  | `deploy-managed-private-endpoints`                                  |
+| `ArtifactsFolder`, `npmpackage`                 | removed                                                             |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -272,6 +287,10 @@ Behaviour differences:
 - Template parameter defaults are applied.
 - Literal text that looks like `parameters('x')` inside notebooks and SQL is
   left alone.
+- A parameters file or `parameters` line that sets a parameter the template
+  does not declare fails the run; upstream ignored extra keys.
+- Key Vault `reference` entries in a parameters file are refused with a clear
+  message; pass the value in `parameters` instead.
 - There is a dry run.
 - No Azure Reader role is needed without integration runtimes.
 

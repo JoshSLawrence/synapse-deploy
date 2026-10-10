@@ -5,6 +5,9 @@
 # - workspace/: the folder that holds the exported template
 # - environment "production": an environment with a federated credential for
 #   this repository and environment
+# - workspace/parameters/production.json: your own ARM parameters file with the
+#   target workspace's values; the exported parameters file carries the source
+#   workspace's, and later files win
 # - the repository variables AZURE_CLIENT_ID and AZURE_TENANT_ID
 name: Deploy Synapse
 
@@ -37,6 +40,8 @@ jobs:
         with:
           workspace-name: myworkspace
           template-file: workspace/TemplateForWorkspace.json
-          parameters-file: workspace/TemplateParametersForWorkspace.json
+          parameters-file: |
+            workspace/TemplateParametersForWorkspace.json
+            workspace/parameters/production.json
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}

@@ -15,13 +15,23 @@ interface ActionFile {
 
 const REPO = new URL('..', import.meta.url);
 
+// A pipe that is already escaped stays as it is, so rendering is idempotent.
+function escapeCell(text: string): string {
+  return text.replace(/(?<!\\)\|/g, '\\|');
+}
+
+function codeSpan(text: string): string {
+  // A backtick inside the value needs a longer fence, padded with spaces.
+  return text.includes('`') ? `\`\` ${escapeCell(text)} \`\`` : `\`${escapeCell(text)}\``;
+}
+
 function describe(kind: string, name: string, entry: ActionEntry | undefined): string {
   if (typeof entry?.description !== 'string' || entry.description.trim() === '') {
     throw new Error(
       `action.yml: ${kind} ${name} has no description; add one, because the README table is generated from it.`,
     );
   }
-  return entry.description.replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
+  return escapeCell(entry.description.replace(/\s+/g, ' ').trim());
 }
 
 function table(header: string[], rows: string[][]): string {
@@ -46,11 +56,11 @@ export function renderTables(actionYml: string): { inputs: string; outputs: stri
       (typeof fallback === 'string' && fallback !== '') ||
       typeof fallback === 'number' ||
       typeof fallback === 'boolean'
-        ? `\`${String(fallback)}\``
+        ? codeSpan(String(fallback))
         : '';
     return [
       `\`${name}\``,
-      entry.required === true ? 'yes' : 'no',
+      entry.required === true || entry.required === 'true' ? 'yes' : 'no',
       shown,
       describe('input', name, entry),
     ];
