@@ -82,7 +82,12 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
   for (const mode of ['sync', 'lro', 'lro-no-location'] as const) {
     it(`deploys every kind in ${mode} mode and polls only when told`, async () => {
       const { server: fake, ctx } = await start({ putMode: mode });
-      for (const candidate of dataKinds) {
+      // The root operationResults collection refuses notebooks, so without a
+      // Location they have no place to poll.
+      const deployed = dataKinds.filter(
+        (candidate) => mode !== 'lro-no-location' || candidate.collection !== 'notebooks',
+      );
+      for (const candidate of deployed) {
         await deployArtifact(ctx, candidate, 'my artifact', body('my artifact'));
         const stored = fake.get(candidate.collection, 'my artifact');
         assert.deepEqual(stored, body('my artifact'), candidate.id);
@@ -90,7 +95,7 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
       const puts = fake.requests.filter((r) => r.method === 'PUT');
       assert.deepEqual(
         puts.map((r) => r.path),
-        dataKinds.map((candidate) => `/${candidate.collection}/my%20artifact`),
+        deployed.map((candidate) => `/${candidate.collection}/my%20artifact`),
       );
       assert.ok(puts.every((r) => r.query === '?api-version=2019-06-01-preview'));
       assert.ok(puts.every((r) => r.authorization === 'Bearer fake-data-token'));
@@ -146,19 +151,41 @@ describe('deploy and delete, every plain kind, against the fake server', () => {
     assert.match(err.message, /a referenced dataset does not exist/);
   });
 
-  it('adds the trigger hint when an enabled trigger blocks a PUT or a DELETE', async () => {
+  const HINT = /Stop the trigger first; the deployer does not start or stop triggers\./;
+
+  it('adds the trigger hint when the PUT of an enabled trigger ends Failed', async () => {
     const { server: fake, ctx } = await start();
     fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
     const put = await rejection(
       deployArtifact(ctx, kind('triggers'), 'tr_hourly', body('tr_hourly')),
     );
-    assert.match(put.message, /disabled first/);
-    assert.match(
-      put.message,
-      /Stop the trigger first; the deployer does not start or stop triggers\./,
-    );
+    assert.match(put.message, /TriggerEnabledCannotUpdate|disabled first/);
+    assert.match(put.message, HINT);
+  });
+
+  it('adds the trigger hint when the DELETE of an enabled trigger ends Failed', async () => {
+    const { server: fake, ctx } = await start();
+    fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
     const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
-    assert.match(del.message, /Stop the trigger first/);
+    assert.match(del.message, /disabled first/);
+    assert.match(del.message, HINT);
+    assert.deepEqual(fake.names('triggers'), ['tr_hourly']);
+  });
+
+  it('adds the trigger hint when the service refuses synchronously: 400 on the PUT, 409 on the DELETE', async () => {
+    const { server: fake, ctx } = await start({
+      triggerPutMode: 'sync-400',
+      triggerDeleteMode: 'sync-409',
+    });
+    fake.seed('triggers', [{ name: 'tr_hourly', properties: { runtimeState: 'Started' } }]);
+    const put = await rejection(
+      deployArtifact(ctx, kind('triggers'), 'tr_hourly', body('tr_hourly')),
+    );
+    assert.match(put.message, /disabled first/);
+    assert.match(put.message, HINT);
+    const del = await rejection(deleteArtifact(ctx, kind('triggers'), 'tr_hourly'));
+    assert.match(del.message, /status 409: Cannot update enabled Trigger/);
+    assert.match(del.message, HINT);
   });
 
   it('adds no hint when only the trigger name says "started", or the artifact is not a trigger', async () => {
@@ -462,6 +489,7 @@ describe('integration runtimes through ARM', () => {
     '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/myworkspace/integrationRuntimes/ir_example';
 
   for (const armMode of [
+    'workspace-location',
     'async-operation',
     'location-only',
     'provisioning-body',

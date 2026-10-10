@@ -662,7 +662,8 @@ describe('429 during a poll, through request()', () => {
     const { server, ctx, put, waits } = await setup({ count: 2 });
     try {
       await awaitDataPlaneDeploy(ctx, await put(), target);
-      assert.deepEqual(waits, [3000, 3000]);
+      // The PUT's Retry-After first, then the 429 waits.
+      assert.deepEqual(waits, [10000, 3000, 3000]);
       const polls = server.requests.filter((r) => r.path.startsWith('/operationResults'));
       assert.equal(polls.length, 3);
     } finally {
@@ -677,7 +678,7 @@ describe('429 during a poll, through request()', () => {
       assert.match(err.message, /429/);
       assert.match(err.message, /after 5 attempts/);
       assert.match(err.message, /slow down/);
-      assert.equal(waits.length, 4);
+      assert.equal(waits.length, 5, 'the PUT hint and 4 retries');
     } finally {
       await server.close();
     }

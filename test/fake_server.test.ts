@@ -26,7 +26,7 @@ async function call(
   path: string,
   options: { headers?: Record<string, string>; body?: unknown } = {},
 ) {
-  const res = await fetch(`${fake.url}${path}`, {
+  const res = await fetch(path.startsWith('http') ? path : `${fake.url}${path}`, {
     method,
     headers: options.headers ?? DATA,
     body: options.body === undefined ? null : JSON.stringify(options.body),
@@ -74,15 +74,53 @@ describe('fake Synapse server: PUT modes', () => {
     assert.deepEqual(fake.get('pipelines', 'PL_A'), { properties: { x: 1 } });
   });
 
-  it('lro answers 202 with operationId and Location, in progress n times, then the resource', async () => {
+  it('lro answers like Azure: 202 with operationId and a same-host Location, in progress n times, then the resource', async () => {
     const fake = await start({ putMode: 'lro', lroPolls: 2 });
-    const put = await call(fake, 'PUT', `/notebooks/nb${V}`, { body: { properties: {} } });
+    const put = await call(fake, 'PUT', `/pipelines/pl${V}`, { body: { properties: {} } });
     assert.equal(put.status, 202);
+    assert.deepEqual(Object.keys(put.json ?? {}).sort(), [
+      'artifactId',
+      'changed',
+      'created',
+      'id',
+      'name',
+      'operationId',
+      'recordId',
+      'state',
+      'type',
+    ]);
+    assert.equal(put.headers.get('retry-after'), '10');
     const location = put.headers.get('location') ?? assert.fail('no Location');
-    assert.match(location, /^\/operationResults\/op\d+\?api-version=2019-06-01-preview$/);
-    assert.equal(put.json?.operationId, location.split('/')[2]?.split('?')[0]);
-    assert.equal((await call(fake, 'GET', location)).status, 202);
-    assert.equal((await call(fake, 'GET', location)).status, 202);
+    assert.match(
+      location,
+      new RegExp(`^${fake.url}/operationResults/op\\d+\\?api-version=2019-06-01-preview$`),
+    );
+    assert.equal(put.json?.operationId, location.split('/')[4]?.split('?')[0]);
+    for (let i = 0; i < 2; i++) {
+      const pending = await call(fake, 'GET', location);
+      assert.equal(pending.status, 202);
+      assert.deepEqual(pending.json, { status: 'InProgress' });
+      assert.equal(pending.headers.get('location'), location);
+      assert.equal(pending.headers.get('retry-after'), '10');
+    }
+    const done = await call(fake, 'GET', location);
+    assert.equal(done.status, 200);
+    assert.equal(done.json?.name, 'pl');
+    assert.equal(done.json?.status, undefined);
+    // Neither the per-kind collection nor the other kinds' roots serve it.
+    const id = put.json?.operationId as string;
+    assert.equal((await call(fake, 'GET', `/pipelines/operationResults/${id}${V}`)).status, 404);
+  });
+
+  it('serves notebook operations under /notebookOperationResults and refuses them at the root', async () => {
+    const fake = await start({ lroPolls: 0 });
+    const put = await call(fake, 'PUT', `/notebooks/nb${V}`, { body: { properties: {} } });
+    const location = put.headers.get('location') ?? assert.fail('no Location');
+    assert.match(location, /\/notebookOperationResults\/op\d+\?/);
+    const id = put.json?.operationId as string;
+    const root = await call(fake, 'GET', `/operationResults/${id}${V}`);
+    assert.equal(root.status, 400);
+    assert.equal((root.json?.error as Record<string, unknown>).code, 'UnsupportedOperation');
     const done = await call(fake, 'GET', location);
     assert.equal(done.status, 200);
     assert.equal(done.json?.name, 'nb');
@@ -90,7 +128,7 @@ describe('fake Synapse server: PUT modes', () => {
 
   it('lro-no-location omits the header but the operation can be read by ID', async () => {
     const fake = await start({ putMode: 'lro-no-location', lroPolls: 0 });
-    const put = await call(fake, 'PUT', `/notebooks/nb${V}`, { body: {} });
+    const put = await call(fake, 'PUT', `/pipelines/pl${V}`, { body: {} });
     assert.equal(put.headers.get('location'), null);
     const id = put.json?.operationId as string;
     assert.equal((await call(fake, 'GET', `/operationResults/${id}${V}`)).status, 200);
@@ -103,6 +141,33 @@ describe('fake Synapse server: PUT modes', () => {
     const done = await call(fake, 'GET', put.headers.get('location') ?? '');
     assert.equal(done.json?.status, 'Failed');
     assert.deepEqual(done.json?.error, { code: 'Failed', message: 'dataset missing' });
+  });
+
+  it('answers 404 with the kind-specific code once an artifact is gone', async () => {
+    const fake = await start();
+    const codes: [string, string][] = [
+      ['pipelines', 'PipelineNotFound'],
+      ['triggers', 'TriggerNotFound'],
+      ['datasets', 'DatasetNotFound'],
+      ['linkedServices', 'LinkedServiceNotFound'],
+      ['dataflows', 'DataFlowNotFound'],
+    ];
+    for (const [collection, code] of codes) {
+      const got = await call(fake, 'GET', `/${collection}/absent${V}`);
+      assert.equal(got.status, 404, collection);
+      assert.equal(got.json?.code, code, collection);
+      assert.equal(typeof got.json?.message, 'string');
+    }
+    for (const collection of ['sqlScripts', 'notebooks']) {
+      const got = await call(fake, 'GET', `/${collection}/absent${V}`);
+      assert.deepEqual(Object.keys(got.json ?? {}).sort(), [
+        'code',
+        'details',
+        'error',
+        'message',
+        'target',
+      ]);
+    }
   });
 
   it('answers 404 for an unknown collection or operation', async () => {
@@ -196,40 +261,117 @@ describe('fake Synapse server: lists and paging', () => {
     assert.equal((await call(fake, 'DELETE', `/databases/db1/tables/t1${L}`)).status, 404);
     assert.equal((await call(fake, 'GET', `/databases/absent${L}`)).status, 404);
   });
+
+  it('writes synchronously with the PascalCase acknowledgement and answers 404 with Code and Message', async () => {
+    const L = '?api-version=2021-04-01';
+    const fake = await start();
+    const keys = [
+      'DDLType',
+      'EntityName',
+      'EntityType',
+      'ObjectId',
+      'ObjectVersion',
+      'OriginObjectId',
+      'PublishStatus',
+    ];
+    fake.seedDatabase('db1');
+    for (const path of [
+      '/databases/db1/tables/t1',
+      '/databases/db1/relationships/r1',
+      '/databases/db1',
+    ]) {
+      const put = await call(fake, 'PUT', `${path}${L}`, { body: { properties: {} } });
+      assert.equal(put.status, 200, path);
+      assert.deepEqual(Object.keys(put.json ?? {}).sort(), keys, path);
+      assert.equal(put.headers.get('location'), null);
+      assert.equal((await call(fake, 'DELETE', `${path}${L}`)).status, 200, path);
+      const gone = await call(fake, 'GET', `${path}${L}`);
+      assert.equal(gone.status, 404, path);
+      assert.deepEqual(Object.keys(gone.json ?? {}).sort(), ['Code', 'Message'], path);
+    }
+  });
 });
 
 describe('fake Synapse server: DELETE', () => {
-  it('sync answers 200, lro answers 202 with Location that ends in 200 or 404, absent is 404', async () => {
+  it('sync answers 200; lro answers 202 with Location, in progress, then 200 with an empty body (or 404)', async () => {
     const fake = await start({ deleteMode: 'sync' });
     fake.seed('datasets', [{ name: 'ds' }]);
     assert.equal((await call(fake, 'DELETE', `/datasets/ds${V}`)).status, 200);
     assert.equal((await call(fake, 'DELETE', `/datasets/ds${V}`)).status, 404);
 
     fake.config.deleteMode = 'lro';
+    fake.config.lroPolls = 1;
+    fake.seed('datasets', [{ name: 'ds' }]);
+    const del = await call(fake, 'DELETE', `/datasets/ds${V}`);
+    assert.equal(del.status, 202);
+    assert.equal(del.headers.get('retry-after'), null);
+    const location = del.headers.get('location') ?? assert.fail('no Location');
+    const pending = await call(fake, 'GET', location);
+    assert.equal(pending.status, 202);
+    assert.deepEqual(pending.json, { status: 'InProgress' });
+    const done = await call(fake, 'GET', location);
+    assert.equal(done.status, 200);
+    assert.equal(done.text, '');
+
     fake.config.lroPolls = 0;
-    for (const completion of ['ok', 'not-found'] as const) {
-      fake.config.deleteCompletion = completion;
-      fake.seed('datasets', [{ name: 'ds' }]);
-      const del = await call(fake, 'DELETE', `/datasets/ds${V}`);
-      assert.equal(del.status, 202);
-      const done = await call(fake, 'GET', del.headers.get('location') ?? '');
-      assert.equal(done.status, completion === 'ok' ? 200 : 404);
-    }
+    fake.config.deleteCompletion = 'not-found';
+    fake.seed('datasets', [{ name: 'ds' }]);
+    const gone = await call(fake, 'DELETE', `/datasets/ds${V}`);
+    assert.equal((await call(fake, 'GET', gone.headers.get('location') ?? '')).status, 404);
   });
 
-  it('refuses to update or delete an enabled trigger with the code and message Synapse uses', async () => {
-    const fake = await start();
-    fake.seed('triggers', [{ name: 'tr', properties: { runtimeState: 'Started' } }]);
-    const del = await call(fake, 'DELETE', `/triggers/tr${V}`);
-    assert.equal(del.status, 400);
-    assert.match(JSON.stringify(del.json), /disabled first/);
-    const put = await call(fake, 'PUT', `/triggers/tr${V}`, { body: { properties: {} } });
-    assert.equal(put.status, 400);
-    assert.deepEqual(put.json?.error, {
-      code: 'TriggerEnabledCannotUpdate',
-      message: 'Cannot update enabled Trigger; the trigger needs to be disabled first.',
+  describe('a started trigger', () => {
+    const seeded = async (config: Partial<FakeConfig>) => {
+      const fake = await start({ lroPolls: 1, ...config });
+      fake.seed('triggers', [{ name: 'tr', properties: { runtimeState: 'Started' } }]);
+      return fake;
+    };
+
+    it('PUT is accepted, then the operation ends Failed with TriggerEnabledCannotUpdate', async () => {
+      const fake = await seeded({});
+      const put = await call(fake, 'PUT', `/triggers/tr${V}`, { body: { properties: {} } });
+      assert.equal(put.status, 202);
+      const location = put.headers.get('location') ?? assert.fail('no Location');
+      assert.equal((await call(fake, 'GET', location)).status, 202);
+      const done = await call(fake, 'GET', location);
+      assert.equal(done.status, 200);
+      assert.deepEqual(done.json, {
+        status: 'Failed',
+        error: {
+          code: 'TriggerEnabledCannotUpdate',
+          message: 'Cannot update enabled Trigger; the trigger needs to be disabled first. ',
+        },
+      });
+      assert.deepEqual(fake.names('triggers'), ['tr']);
     });
-    assert.deepEqual(fake.names('triggers'), ['tr']);
+
+    it('DELETE is accepted, then the operation ends Failed with DeleteDataFactoryResourceOrchestrationError', async () => {
+      const fake = await seeded({});
+      const del = await call(fake, 'DELETE', `/triggers/tr${V}`);
+      assert.equal(del.status, 202);
+      const location = del.headers.get('location') ?? assert.fail('no Location');
+      await call(fake, 'GET', location);
+      const done = await call(fake, 'GET', location);
+      assert.equal(done.status, 200);
+      assert.equal(done.json?.status, 'Failed');
+      assert.equal(
+        (done.json?.error as Record<string, unknown>).code,
+        'DeleteDataFactoryResourceOrchestrationError',
+      );
+      assert.match(JSON.stringify(done.json), /disabled first/);
+      assert.deepEqual(fake.names('triggers'), ['tr']);
+    });
+
+    it('can refuse synchronously instead: 400 on the PUT, 409 with a Message on the DELETE', async () => {
+      const fake = await seeded({ triggerPutMode: 'sync-400', triggerDeleteMode: 'sync-409' });
+      const put = await call(fake, 'PUT', `/triggers/tr${V}`, { body: { properties: {} } });
+      assert.equal(put.status, 400);
+      assert.equal((put.json?.error as Record<string, unknown>).code, 'TriggerEnabledCannotUpdate');
+      const del = await call(fake, 'DELETE', `/triggers/tr${V}`);
+      assert.equal(del.status, 409);
+      assert.match(String(del.json?.Message), /disabled first/);
+      assert.deepEqual(fake.names('triggers'), ['tr']);
+    });
   });
 });
 
@@ -249,6 +391,45 @@ describe('fake Synapse server: endpoints', () => {
       states.push((got.json?.properties as Record<string, unknown>).provisioningState);
     }
     assert.deepEqual(states, ['Provisioning', 'Provisioning', 'Succeeded', 'Succeeded']);
+  });
+
+  it('answers an unchanged redeploy with 200 Succeeded at once', async () => {
+    const fake = await start({ endpointPolls: 0 });
+    await call(fake, 'PUT', `${path}/pe${V}`, { body: { properties: { groupId: 'sql' } } });
+    await call(fake, 'GET', `${path}/pe${V}`);
+    const again = await call(fake, 'PUT', `${path}/pe${V}`, {
+      body: { properties: { groupId: 'sql' } },
+    });
+    assert.equal(again.status, 200);
+    assert.equal(
+      (again.json?.properties as Record<string, unknown>).provisioningState,
+      'Succeeded',
+    );
+    const changed = await call(fake, 'PUT', `${path}/pe${V}`, {
+      body: { properties: { groupId: 'blob' } },
+    });
+    assert.equal(
+      (changed.json?.properties as Record<string, unknown>).provisioningState,
+      'Provisioning',
+    );
+  });
+
+  it('DELETE answers 202 with no Location and no body; the endpoint is served n more times, then 404', async () => {
+    const fake = await start({ endpointDeletePolls: 2, endpointPolls: 0 });
+    await call(fake, 'PUT', `${path}/pe${V}`, { body: { properties: {} } });
+    const del = await call(fake, 'DELETE', `${path}/pe${V}`);
+    assert.equal(del.status, 202);
+    assert.equal(del.headers.get('location'), null);
+    assert.equal(del.text, '');
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      statuses.push((await call(fake, 'GET', `${path}/pe${V}`)).status);
+    }
+    assert.deepEqual(statuses, [200, 200, 404, 404]);
+    const gone = await call(fake, 'GET', `${path}/pe${V}`);
+    const inner = gone.json?.error as Record<string, unknown>;
+    assert.equal(inner.code, 'UnknownError');
+    assert.match(String(inner.message), /PrivateEndpointNotFound/);
   });
 
   it('can end Failed', async () => {
@@ -275,6 +456,46 @@ describe('fake Synapse server: endpoints', () => {
 describe('fake Synapse server: ARM integration runtimes', () => {
   const path =
     '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/myworkspace/integrationRuntimes/ir';
+
+  it('workspace-location: 202 with operationId and a workspace-scoped Location, no Azure-AsyncOperation', async () => {
+    const fake = await start({ armPolls: 1, lroPolls: 1 });
+    const put = await call(fake, 'PUT', `${path}${V}`, { headers: ARM, body: { properties: {} } });
+    assert.equal(put.status, 202);
+    assert.equal(put.headers.get('azure-asyncoperation'), null);
+    assert.equal(put.headers.get('retry-after'), '10');
+    const location = put.headers.get('location') ?? assert.fail('no Location');
+    assert.match(
+      location,
+      new RegExp(
+        `^${fake.url}/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/myworkspace/operationResults/op\\d+\\?`,
+      ),
+    );
+    assert.equal(put.json?.operationId, location.split('/').pop()?.split('?')[0]);
+    const pending = await call(fake, 'GET', location, { headers: ARM });
+    assert.equal(pending.status, 202);
+    assert.equal(pending.text, '');
+    const done = await call(fake, 'GET', location, { headers: ARM });
+    assert.equal(done.status, 200);
+    assert.deepEqual(Object.keys(done.json ?? {}).sort(), [
+      'etag',
+      'id',
+      'name',
+      'properties',
+      'type',
+    ]);
+
+    const del = await call(fake, 'DELETE', `${path}${V}`, { headers: ARM });
+    assert.equal(del.status, 202);
+    assert.equal(del.headers.get('retry-after'), null);
+    const delLocation = del.headers.get('location') ?? assert.fail('no Location');
+    assert.equal((await call(fake, 'GET', delLocation, { headers: ARM })).status, 202);
+    const delDone = await call(fake, 'GET', delLocation, { headers: ARM });
+    assert.equal(delDone.status, 200);
+    assert.equal(delDone.text, '');
+    const gone = await call(fake, 'GET', `${path}${V}`, { headers: ARM });
+    assert.equal(gone.status, 404);
+    assert.equal((gone.json?.error as Record<string, unknown>).code, 'NotFound');
+  });
 
   it('async-operation: 201 with Azure-AsyncOperation that reports InProgress, then Succeeded', async () => {
     const fake = await start({ armMode: 'async-operation', armPolls: 1 });
