@@ -216,9 +216,13 @@ A second job, `log-check.sh`, scans the finished job log.
 - Never set the repository variables `ACTIONS_STEP_DEBUG` or
   `ACTIONS_RUNNER_DEBUG`, and never re-run with debug logging: the run log is
   public. The workflow refuses to run at debug level.
-- Every step of the e2e job has its own `timeout-minutes`, so the job timeout
-  never ends a step: a cancelled or timed-out job's remaining steps get only
-  a few minutes. The cleanup signs in again first, because a federated token
+- Every step of the e2e job has its own `timeout-minutes`, and the job's is
+  their sum rounded up, so the job timeout never ends a step (a cancelled or
+  timed-out job's remaining steps get only a few minutes). A healthy run takes
+  about 15 minutes; the caps are only for hangs. A deploy step gets 25 minutes,
+  longer than the action's own 20 minute operation deadline, so the action
+  reports its error before the runner kills it. Raise the job timeout when you
+  add a step. The cleanup signs in again first, because a federated token
   cannot be refreshed after about an hour.
 - A cancelled or timed-out run can leave leftovers in the workspace. The next
   run refuses to start (`--require-empty`) until they are removed by hand.

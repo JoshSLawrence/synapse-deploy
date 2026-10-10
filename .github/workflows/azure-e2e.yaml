@@ -20,7 +20,9 @@ jobs:
     name: Azure E2E
     runs-on: ubuntu-latest
     environment: azure-e2e
-    timeout-minutes: 90
+    # The sum of the step timeouts below (255), rounded up: the job timeout
+    # must never be what ends a step. A healthy run takes about 15 minutes.
+    timeout-minutes: 260
     permissions:
       contents: read
       id-token: write
@@ -62,7 +64,7 @@ jobs:
         run: .github/scripts/azure-e2e/snapshot.sh "$E2E_DIR/results/before.txt" --require-empty
 
       - name: Deploy v1
-        timeout-minutes: 10
+        timeout-minutes: 25
         id: v1
         uses: ./
         with:
@@ -85,7 +87,7 @@ jobs:
         run: .github/scripts/azure-e2e/steps.sh check-v1
 
       - name: Redeploy v1 unchanged
-        timeout-minutes: 10
+        timeout-minutes: 25
         id: v1b
         uses: ./
         with:
@@ -108,7 +110,7 @@ jobs:
         run: .github/scripts/azure-e2e/steps.sh check-redeploy
 
       - name: Dry run v2 with delete-artifacts
-        timeout-minutes: 10
+        timeout-minutes: 25
         id: dry
         uses: ./
         with:
@@ -133,7 +135,7 @@ jobs:
         run: .github/scripts/azure-e2e/steps.sh check-dry
 
       - name: Deploy v2 with delete-artifacts
-        timeout-minutes: 10
+        timeout-minutes: 25
         id: v2
         uses: ./
         with:
@@ -166,7 +168,7 @@ jobs:
         run: az synapse trigger start --workspace-name "$AZURE_SYNAPSE_WORKSPACE" --name tr_e2e_daily --output none
 
       - name: Deploy a changed trigger while it is started (must fail)
-        timeout-minutes: 10
+        timeout-minutes: 25
         id: changed-trigger
         continue-on-error: true
         uses: ./
@@ -209,7 +211,7 @@ jobs:
         run: az synapse trigger stop --workspace-name "$AZURE_SYNAPSE_WORKSPACE" --name tr_e2e_daily --output none || true
 
       - name: Cleanup - deploy an empty template with delete-artifacts
-        timeout-minutes: 10
+        timeout-minutes: 25
         id: empty
         if: always() && steps.before.outcome == 'success'
         continue-on-error: true

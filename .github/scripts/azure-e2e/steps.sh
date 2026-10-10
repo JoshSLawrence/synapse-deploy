@@ -22,6 +22,7 @@ source "$SCRIPT_DIR/lib.sh"
 cmd_start() {
   # The run log is public: debug logging would print the HTTP trace.
   if [ "${RUNNER_DEBUG:-}" = "1" ] || [ -n "${STEP_DEBUG_VAR:-}" ] || [ -n "${RUNNER_DEBUG_VAR:-}" ]; then
+    echo "::error::Public runs must not log at debug level: re-run without 'Enable debug logging', and delete the repository variables ACTIONS_STEP_DEBUG and ACTIONS_RUNNER_DEBUG if they exist."
     log_error "Public runs must not log at debug level: re-run without 'Enable debug logging', and delete the repository variables ACTIONS_STEP_DEBUG and ACTIONS_RUNNER_DEBUG if they exist."
     exit 1
   fi
@@ -56,6 +57,7 @@ cmd_check_dry() {
 cmd_check_v2() {
   check_after "deploy v2" after-v2 v2 6
   if [ "$DELETED" != "${DRY_DELETED:?set DRY_DELETED}" ]; then
+    echo "::error::The dry run planned ${DRY_DELETED} deletion(s), the deployment made ${DELETED}."
     log_error "The dry run planned ${DRY_DELETED} deletion(s), the deployment made ${DELETED}: compare the two steps' logs."
     exit 1
   fi
@@ -65,6 +67,7 @@ cmd_check_v2() {
 cmd_trigger_refused() {
   local outcome="${OUTCOME:?set OUTCOME}"
   if [ "$outcome" != "failure" ]; then
+    echo "::error::The changed-trigger deployment ended '${outcome}', expected 'failure'."
     log_error "The changed-trigger deployment ended '${outcome}', expected 'failure': a started trigger must refuse the update, and the action must report it."
     exit 1
   fi
@@ -72,6 +75,7 @@ cmd_trigger_refused() {
 }
 
 cmd_empty_failed() {
+  echo "::error::The empty-template deployment failed; see that step's log."
   log_error "The empty-template deployment failed. The cleanup script then ran: if it passed, the workspace is restored; if not, it is not, so remove the leftovers by hand before the next run. See the failed step's log."
   exit 1
 }

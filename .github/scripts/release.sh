@@ -86,9 +86,16 @@ release_exists() {
 # release_recovery: runs on any failure between creating the release and
 # starting the major tag move, when the release may or may not exist.
 release_recovery() {
-  log_error "The release ${release_version} may exist: re-run Release with the same version to resume (only while main hasn't moved), or move the major tag by hand."
+  # Once: the trap also fires inside command substitutions (errtrace), which
+  # are subshells, so the marker is a file.
+  if [[ -s "$recovery_marker" ]]; then
+    return 0
+  fi
+  echo printed >"$recovery_marker"
+  log_error "The release ${release_version} may or may not exist. Check with: gh release view ${release_version}"
+  log_error "If it exists, re-run Release with the same version to resume (only while main hasn't moved), or move the major tag by hand. If it does not, fix the cause above and re-run."
   if [[ -n "${MAJOR:-}" ]]; then
-    printf 'To move %s now:\n' "$MAJOR" >&2
+    printf 'To move %s now, only if the release exists:\n' "$MAJOR" >&2
     print_move_command "$GITHUB_SHA" >&2
   fi
 }
@@ -210,6 +217,7 @@ main() {
   # From here the release may exist even if a command fails, so say how to
   # recover. errtrace lets the trap fire inside main.
   release_version="$version"
+  recovery_marker="$(mktemp)"
   set -o errtrace
   trap release_recovery ERR
   if [[ $resume -eq 0 ]]; then

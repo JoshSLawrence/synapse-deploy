@@ -13,8 +13,9 @@
 #   <output-dir>/empty/TemplateForWorkspace.json       v1 without resources
 #
 # Writes step outputs when GITHUB_OUTPUT is set: params_v1 and params_v2
-# (name=value lines for the action's parameters input). None of it is committed; the
-# values are masked with ::add-mask:: as soon as they are found.
+# (name=value lines for the action's parameters input). None of it is
+# committed; the values are masked with ::add-mask:: as soon as they are
+# found.
 #
 # Environment variables:
 #   AZURE_SYNAPSE_WORKSPACE, AZURE_RESOURCE_GROUP - the test workspace
