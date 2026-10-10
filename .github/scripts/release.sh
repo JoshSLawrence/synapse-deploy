@@ -217,7 +217,8 @@ main() {
   # From here the release may exist even if a command fails, so say how to
   # recover. errtrace lets the trap fire inside main.
   release_version="$version"
-  recovery_marker="$(mktemp)"
+  recovery_marker="$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/release-recovery.XXXXXX")"
+  trap 'rm -f "$recovery_marker"' EXIT
   set -o errtrace
   trap release_recovery ERR
   if [[ $resume -eq 0 ]]; then
