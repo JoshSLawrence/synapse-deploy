@@ -30,16 +30,16 @@
   "dependencies": {
     "@actions/core": "^3.0.1",
     "@actions/http-client": "^4.0.1",
-    "@azure/identity": "^4.13.3"
+    "@azure/identity": "^4.14.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
     "esbuild": "0.28.2",
-    "eslint": "^10.12.0",
-    "prettier": "^3.9.9",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.71.1",
+    "typescript-eslint": "^8.71.2",
     "yaml": "^2.9.1"
   },
   "allowScripts": {
